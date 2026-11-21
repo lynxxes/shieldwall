@@ -17,7 +17,7 @@
       --hud-crimson: #ff3b5c;
       --hud-emerald: #00e676;
       --hud-bg: #050911;
-      --hud-panel: rgba(8, 17, 30, 0.86);
+      --hud-panel: rgba(8, 17, 30, 0.88);
       --hud-accent: #00e5ff;
     }
 
@@ -26,31 +26,30 @@
       background-color: var(--hud-bg);
       color: #e2f1ff;
       background-image:
-        radial-gradient(circle at 50% 45%, rgba(0, 229, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 50% 42%, rgba(0, 229, 255, 0.09) 0%, transparent 62%),
         linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
-      background-size: 100% 100%, 36px 36px, 36px 36px;
+      background-size: 100% 100%, 34px 34px, 34px 34px;
     }
 
     .font-hud { font-family: 'Orbitron', sans-serif; }
     .font-mono-hud { font-family: 'JetBrains Mono', monospace; }
 
-    /* Subtle CRT / Hologram Scanline Overlay */
     .scanlines {
       background: repeating-linear-gradient(
         to bottom,
         transparent 0px,
         transparent 2px,
-        rgba(0, 229, 255, 0.018) 3px,
-        rgba(0, 0, 0, 0.08) 4px
+        rgba(0, 229, 255, 0.016) 3px,
+        rgba(0, 0, 0, 0.07) 4px
       );
       pointer-events: none;
     }
 
     .hud-panel {
       background: var(--hud-panel);
-      border: 1px solid rgba(0, 229, 255, 0.22);
-      box-shadow: 0 0 24px rgba(0, 229, 255, 0.06), inset 0 0 18px rgba(0, 229, 255, 0.03);
+      border: 1px solid rgba(0, 229, 255, 0.24);
+      box-shadow: 0 0 22px rgba(0, 229, 255, 0.06), inset 0 0 16px rgba(0, 229, 255, 0.03);
       backdrop-filter: blur(8px);
       position: relative;
     }
@@ -59,8 +58,8 @@
     .hud-panel::after {
       content: '';
       position: absolute;
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       pointer-events: none;
     }
     .hud-panel::before {
@@ -80,18 +79,15 @@
     .threat-4 { --hud-accent: #00e5ff; }
     .threat-5 { --hud-accent: #00e5ff; }
 
-    /* Custom Scrollbar */
     .hud-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
     .hud-scroll::-webkit-scrollbar-track { background: rgba(0, 229, 255, 0.04); }
     .hud-scroll::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.35); border-radius: 2px; }
 
-    /* Arc Reactor Spin */
     @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
     .spin-slow { animation: spinSlow 24s linear infinite; transform-origin: center; }
     .spin-reverse { animation: spinReverse 14s linear infinite; transform-origin: center; }
 
-    /* Radar Sweep */
     @keyframes radarPulse {
       0% { transform: scale(0.4); opacity: 0.9; }
       100% { transform: scale(2.8); opacity: 0; }
@@ -102,7 +98,6 @@
       transform-origin: center;
     }
 
-    /* Live Ticker Marquee */
     @keyframes tickerScroll {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
@@ -110,11 +105,17 @@
     .ticker-track {
       display: flex;
       width: max-content;
-      animation: tickerScroll 65s linear infinite;
+      animation: tickerScroll 85s linear infinite;
     }
     .ticker-wrapper:hover .ticker-track {
       animation-play-state: paused;
     }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .chat-msg-enter { animation: fadeSlideIn 0.35s ease-out; }
   </style>
 </head>
 <body class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col selection:bg-cyan-500/30 threat-5" id="app-root">
@@ -140,8 +141,11 @@
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             SAT-LINK ACTIVE
           </span>
+          <span class="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono-hud bg-cyan-500/10 text-cyan-300 border border-cyan-500/25 rounded whitespace-nowrap">
+            UPLINK: <strong id="hdr-uplink">4.82 Gbps</strong> • LAT: <strong id="hdr-latency">11ms</strong>
+          </span>
         </div>
-        <p class="text-[10px] font-mono-hud text-cyan-200/60 tracking-wider truncate">SECTOR: BABYLON, NY [40.6957°N, 73.3257°W] • J.A.R.V.I.S. v14.8</p>
+        <p class="text-[10px] font-mono-hud text-cyan-200/60 tracking-wider truncate">SECTOR: BABYLON, NY [40.6957°N, 73.3257°W] • J.A.R.V.I.S. v15.2 • S.A.B.E.R. BRIDGE</p>
       </div>
     </div>
 
@@ -165,7 +169,7 @@
         <div id="clock-utc" class="text-[9px] text-cyan-400/70">UTC --:--:-- • --- --, ----</div>
       </div>
 
-      <button id="btn-autocycle" class="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono-hud border border-cyan-500/40 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 transition whitespace-nowrap" title="Auto-cycle intel slides & map views">
+      <button id="btn-autocycle" class="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono-hud border border-cyan-500/40 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 transition whitespace-nowrap" title="Auto-cycle intel slides">
         <i data-lucide="refresh-cw" class="w-3 h-3"></i>
         <span class="hidden md:inline">SLIDES: ON</span>
       </button>
@@ -185,7 +189,7 @@
   <!-- MAIN 3-COLUMN WIDESCREEN COMMAND GRID -->
   <main class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 p-2 z-10 overflow-y-auto lg:overflow-hidden">
 
-    <!-- LEFT COLUMN (3 cols): WEATHER + STARK TELEMETRY + AVENGER ROSTER -->
+    <!-- LEFT COLUMN (3 cols): WEATHER + STARK TELEMETRY WAVEFORM + 7-HERO ROSTER -->
     <section class="lg:col-span-3 flex flex-col gap-2 min-h-0">
 
       <!-- Babylon, NY Weather Module -->
@@ -213,27 +217,25 @@
           </div>
         </div>
 
-        <!-- Hourly SVG Sparkline -->
         <div class="bg-slate-950/60 border border-cyan-500/15 rounded p-1">
           <div class="flex justify-between text-[9px] font-mono-hud text-slate-400 mb-0.5">
             <span>12H THERMAL</span>
             <span id="wx-marine">ANZ355: 1-2 FT • 5-10 KT</span>
           </div>
-          <svg id="wx-sparkline" viewBox="0 0 260 38" class="w-full h-9 overflow-visible"></svg>
+          <svg id="wx-sparkline" viewBox="0 0 260 36" class="w-full h-8 overflow-visible"></svg>
         </div>
 
-        <!-- 3-Day Tactical Outlook -->
         <div id="wx-forecast" class="grid grid-cols-3 gap-1 text-center font-mono-hud text-[10px]"></div>
       </div>
 
-      <!-- Stark Arc Reactor & Suit Diagnostics -->
+      <!-- Stark Arc Reactor & Live Telemetry Oscilloscope -->
       <div class="hud-panel rounded p-2.5 flex flex-col gap-1.5 shrink-0">
         <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1">
           <div class="flex items-center gap-1.5">
             <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i>
-            <h2 class="font-hud text-[11px] font-bold tracking-wider text-amber-300">STARK CORE // MK LXXXV</h2>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-amber-300">STARK CORE // TELEMETRY</h2>
           </div>
-          <span class="text-[9px] font-mono-hud text-emerald-400">ONLINE</span>
+          <span class="text-[9px] font-mono-hud text-emerald-400">LIVE STREAM</span>
         </div>
 
         <div class="flex items-center gap-2.5">
@@ -248,14 +250,14 @@
           </div>
           <div class="flex-1 space-y-1 font-mono-hud text-[10px]">
             <div class="flex justify-between">
-              <span class="text-slate-400">REACTOR OUTPUT</span>
+              <span class="text-slate-400">ARC REACTOR</span>
               <span id="reactor-output" class="text-cyan-300 font-bold">3.21 GJ/s</span>
             </div>
             <div class="w-full h-1.5 bg-slate-900 rounded overflow-hidden">
               <div id="reactor-bar" class="h-full bg-gradient-to-r from-cyan-500 to-sky-300 transition-all duration-700" style="width: 94%"></div>
             </div>
             <div class="flex justify-between">
-              <span class="text-slate-400">NANOTECH ARMOR</span>
+              <span class="text-slate-400">MK LXXXV ARMOR</span>
               <span id="armor-integrity" class="text-emerald-300 font-bold">99.4%</span>
             </div>
             <div class="flex justify-between">
@@ -264,109 +266,205 @@
             </div>
           </div>
         </div>
+
+        <!-- Live Multi-Channel Telemetry Waveform & Gauges -->
+        <div class="bg-slate-950/65 border border-cyan-500/15 rounded p-1.5">
+          <div class="flex justify-between text-[9px] font-mono-hud text-slate-400 mb-0.5">
+            <span>POWER / QUANTUM FLUX</span>
+            <span id="telemetry-flux" class="text-cyan-300">98.4 THz</span>
+          </div>
+          <svg id="telemetry-wave" viewBox="0 0 260 32" class="w-full h-8"></svg>
+          <div class="grid grid-cols-3 gap-1 mt-1 text-center font-mono-hud text-[9px]">
+            <div class="bg-slate-900/80 rounded py-0.5 border border-cyan-500/10">
+              <span class="text-slate-400 block">GRID LOAD</span>
+              <span id="tel-grid" class="text-emerald-300 font-bold">94.2%</span>
+            </div>
+            <div class="bg-slate-900/80 rounded py-0.5 border border-cyan-500/10">
+              <span class="text-slate-400 block">SHIELD BAR</span>
+              <span id="tel-shield" class="text-cyan-300 font-bold">99.8%</span>
+            </div>
+            <div class="bg-slate-900/80 rounded py-0.5 border border-cyan-500/10">
+              <span class="text-slate-400 block">TEMP CORE</span>
+              <span id="tel-temp" class="text-amber-300 font-bold">312 K</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Avenger & S.H.I.E.L.D. Asset Readiness (Fits all 5 on screen at once) -->
+      <!-- Avenger & S.H.I.E.L.D. Asset Readiness (7 Assets, Compact & Zero Void) -->
       <div class="hud-panel rounded p-2.5 flex-1 min-h-0 flex flex-col">
         <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
           <div class="flex items-center gap-1.5">
             <i data-lucide="shield" class="w-3.5 h-3.5 text-cyan-400"></i>
             <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">AVENGER // ASSET ROSTER</h2>
           </div>
-          <span class="text-[9px] font-mono-hud text-emerald-400/80 whitespace-nowrap">LIVE SYNC</span>
+          <span class="text-[9px] font-mono-hud text-emerald-400/90 whitespace-nowrap">7 ACTIVE</span>
         </div>
-        <div id="roster-list" class="flex-1 min-h-0 flex flex-col justify-between gap-1 overflow-y-auto hud-scroll"></div>
+        <div id="roster-list" class="flex-1 min-h-0 overflow-y-auto hud-scroll space-y-1.5 pr-0.5"></div>
       </div>
     </section>
 
-    <!-- CENTER COLUMN (6 cols): GLOBAL TACTICAL WORLD VIEW -->
-    <section class="lg:col-span-6 hud-panel rounded p-2.5 flex flex-col min-h-[380px] lg:min-h-0 relative overflow-hidden">
-      <!-- Map Header Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-2 shrink-0 z-10">
-        <div class="flex items-center gap-2">
-          <i data-lucide="globe" class="w-4 h-4 text-cyan-400"></i>
-          <h2 class="font-hud text-xs sm:text-sm font-bold tracking-wider text-cyan-200">GLOBAL TACTICAL SURVEILLANCE</h2>
-          <span id="seismic-badge" class="text-[10px] font-mono-hud px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">USGS: LOADING</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <button id="btn-mode-2d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition">2D MAP</button>
-          <button id="btn-mode-3d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition">3D GLOBE</button>
-          <button id="btn-rotate-globe" class="hidden px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-amber-300 border border-amber-500/40 transition">PAUSE SPIN</button>
-          <button id="btn-trigger-anomaly" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition flex items-center gap-1">
-            <i data-lucide="zap" class="w-3 h-3"></i> SIM ANOMALY
-          </button>
-        </div>
-      </div>
+    <!-- CENTER COLUMN (6 cols): TOP GLOBAL MAP + BOTTOM LIVE AVENGER CHAT & ACTIVE EVENTS -->
+    <section class="lg:col-span-6 flex flex-col gap-2 min-h-0">
 
-      <!-- World Map SVG Container -->
-      <div id="map-container" class="flex-1 min-h-0 relative flex items-center justify-center bg-[#040810]/70 rounded border border-cyan-500/15 overflow-hidden">
-        <svg id="world-map" class="w-full h-full select-none"></svg>
-
-        <!-- Corner Telemetry Readouts -->
-        <div class="absolute top-2 left-2.5 font-mono-hud text-[10px] text-cyan-300/75 pointer-events-none space-y-0.5">
-          <div>ORBITAL TRACK: <span class="text-cyan-200">STARK-SAT-04 // S.A.B.E.R.</span></div>
-          <div>ACTIVE CONTACTS: <span id="map-contact-count" class="text-amber-300">--</span></div>
-        </div>
-
-        <!-- Map Legend -->
-        <div class="absolute bottom-2 left-2.5 flex flex-wrap items-center gap-3 text-[10px] font-mono-hud bg-slate-950/80 border border-cyan-500/20 px-2.5 py-1 rounded pointer-events-none">
-          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> HQ BABYLON</span>
-          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> S.H.I.E.L.D.</span>
-          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> SEISMIC (LIVE)</span>
-          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> ANOMALY</span>
-        </div>
-
-        <!-- Target Dossier Overlay Card (Shown on Marker Click) -->
-        <div id="target-dossier" class="hidden absolute bottom-2 right-2 w-72 max-w-[92%] bg-[#071120]/95 border border-cyan-400/50 rounded p-3 shadow-2xl z-20">
-          <div class="flex items-start justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-2">
-            <div>
-              <div id="dossier-type" class="text-[9px] font-mono-hud uppercase tracking-wider text-amber-300">S.H.I.E.L.D. ASSET</div>
-              <h3 id="dossier-title" class="font-hud text-xs font-bold text-white">Target</h3>
-            </div>
-            <button id="btn-close-dossier" class="text-slate-400 hover:text-white">
-              <i data-lucide="x" class="w-4 h-4"></i>
+      <!-- TOP (~63%): GLOBAL TACTICAL WORLD VIEW -->
+      <div class="hud-panel rounded p-2.5 flex-[1.65] min-h-[300px] lg:min-h-0 flex flex-col relative overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-1.5 shrink-0 z-10">
+          <div class="flex items-center gap-2">
+            <i data-lucide="globe" class="w-4 h-4 text-cyan-400"></i>
+            <h2 class="font-hud text-xs sm:text-sm font-bold tracking-wider text-cyan-200">GLOBAL TACTICAL SURVEILLANCE</h2>
+            <span id="seismic-badge" class="text-[10px] font-mono-hud px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">USGS: LOADING</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btn-mode-2d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition">2D MAP</button>
+            <button id="btn-mode-3d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition">3D GLOBE</button>
+            <button id="btn-rotate-globe" class="hidden px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-amber-300 border border-amber-500/40 transition">PAUSE SPIN</button>
+            <button id="btn-trigger-anomaly" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition flex items-center gap-1">
+              <i data-lucide="zap" class="w-3 h-3"></i> SIM ANOMALY
             </button>
           </div>
-          <p id="dossier-desc" class="text-[11px] text-slate-300 leading-relaxed mb-2"></p>
-          <div class="flex items-center justify-between text-[10px] font-mono-hud text-cyan-300/80 mb-2">
-            <span id="dossier-coords">--°, --°</span>
-            <span id="dossier-status" class="text-emerald-300">MONITORING</span>
-          </div>
-          <button id="btn-dispatch" class="w-full py-1.5 rounded text-[11px] font-hud font-bold tracking-wider bg-cyan-500/20 text-cyan-200 border border-cyan-400/50 hover:bg-cyan-500/35 transition">
-            DISPATCH QUINJET / RECON
-          </button>
         </div>
+
+        <div id="map-container" class="flex-1 min-h-0 relative flex items-center justify-center bg-[#040810]/70 rounded border border-cyan-500/15 overflow-hidden">
+          <svg id="world-map" class="w-full h-full select-none"></svg>
+
+          <div class="absolute top-2 left-2.5 font-mono-hud text-[10px] text-cyan-300/80 pointer-events-none space-y-0.5">
+            <div>ORBITAL TRACK: <span class="text-cyan-200">STARK-SAT-04 // S.A.B.E.R.</span></div>
+            <div>ACTIVE CONTACTS: <span id="map-contact-count" class="text-amber-300">--</span> • VOYAGER-1: <span class="text-emerald-300">1.00 LIGHT-DAY</span></div>
+          </div>
+
+          <div class="absolute bottom-2 left-2.5 flex flex-wrap items-center gap-3 text-[10px] font-mono-hud bg-slate-950/80 border border-cyan-500/20 px-2.5 py-1 rounded pointer-events-none">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> HQ BABYLON</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> S.H.I.E.L.D.</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> SEISMIC (LIVE)</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> ANOMALY</span>
+          </div>
+
+          <!-- Target Dossier Overlay Card -->
+          <div id="target-dossier" class="hidden absolute bottom-2 right-2 w-72 max-w-[92%] bg-[#071120]/95 border border-cyan-400/50 rounded p-3 shadow-2xl z-20">
+            <div class="flex items-start justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-2">
+              <div>
+                <div id="dossier-type" class="text-[9px] font-mono-hud uppercase tracking-wider text-amber-300">S.H.I.E.L.D. ASSET</div>
+                <h3 id="dossier-title" class="font-hud text-xs font-bold text-white">Target</h3>
+              </div>
+              <button id="btn-close-dossier" class="text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p id="dossier-desc" class="text-[11px] text-slate-300 leading-relaxed mb-2"></p>
+            <div class="flex items-center justify-between text-[10px] font-mono-hud text-cyan-300/80 mb-2">
+              <span id="dossier-coords">--°, --°</span>
+              <span id="dossier-status" class="text-emerald-300">MONITORING</span>
+            </div>
+            <button id="btn-dispatch" class="w-full py-1.5 rounded text-[11px] font-hud font-bold tracking-wider bg-cyan-500/20 text-cyan-200 border border-cyan-400/50 hover:bg-cyan-500/35 transition">
+              DISPATCH QUINJET / RECON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM (~37%): AVENGERS & J.A.R.V.I.S. ENCRYPTED COMMS + ACTIVE EVENTS -->
+      <div class="flex-1 min-h-[210px] lg:min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2">
+
+        <!-- Live Hero & J.A.R.V.I.S. Comms Chat -->
+        <div class="hud-panel rounded p-2.5 flex flex-col min-h-0">
+          <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="message-square-code" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">COMMS // AVENGERS & J.A.R.V.I.S.</h2>
+            </div>
+            <span class="flex items-center gap-1 text-[9px] font-mono-hud text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ENCRYPTED
+            </span>
+          </div>
+
+          <div id="hero-chat-feed" class="flex-1 min-h-0 overflow-y-auto hud-scroll space-y-1.5 pr-1 text-[11px]"></div>
+
+          <form id="chat-form" class="mt-1.5 pt-1.5 border-t border-cyan-500/20 flex gap-1.5 shrink-0">
+            <input id="chat-input" type="text" placeholder="Transmit to J.A.R.V.I.S. / Avengers..." class="flex-1 bg-slate-950/80 border border-cyan-500/30 rounded px-2 py-1 text-[11px] font-mono-hud text-cyan-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400" />
+            <button type="submit" class="px-2.5 py-1 rounded bg-cyan-500/20 border border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/35 text-[10px] font-hud font-bold tracking-wider transition">SEND</button>
+          </form>
+        </div>
+
+        <!-- Active Events & Operations Radar -->
+        <div class="hud-panel rounded p-2.5 flex flex-col min-h-0">
+          <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-amber-400"></i>
+              <h2 class="font-hud text-[11px] font-bold tracking-wider text-amber-300">ACTIVE EVENTS & OPS</h2>
+            </div>
+            <div class="flex gap-1" id="event-filter-btns">
+              <button data-ef="all" class="ef-btn px-1.5 py-0.5 rounded text-[9px] font-mono-hud bg-amber-500/25 text-amber-200 border border-amber-400/50">ALL</button>
+              <button data-ef="local" class="ef-btn px-1.5 py-0.5 rounded text-[9px] font-mono-hud bg-slate-900/70 text-slate-400 border border-slate-700">LI/LOCAL</button>
+              <button data-ef="ops" class="ef-btn px-1.5 py-0.5 rounded text-[9px] font-mono-hud bg-slate-900/70 text-slate-400 border border-slate-700">OPS</button>
+            </div>
+          </div>
+
+          <div id="events-list" class="flex-1 min-h-0 overflow-y-auto hud-scroll space-y-1.5 pr-1"></div>
+        </div>
+
       </div>
     </section>
 
-    <!-- RIGHT COLUMN (3 cols): LIVE MULTI-DOMAIN NEWS & INTEL FEED -->
-    <section class="lg:col-span-3 hud-panel rounded p-2.5 flex flex-col min-h-[340px] lg:min-h-0">
-      <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
-        <div class="flex items-center gap-1.5">
-          <i data-lucide="radio" class="w-3.5 h-3.5 text-amber-400 animate-pulse"></i>
-          <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">INTEL // SLIDE DECK</h2>
+    <!-- RIGHT COLUMN (3 cols): MULTI-SOURCE NEWS DECK + SYSTEM TELEMETRY & LOG -->
+    <section class="lg:col-span-3 flex flex-col gap-2 min-h-0">
+
+      <!-- Multi-Source News Deck -->
+      <div class="hud-panel rounded p-2.5 flex-[1.7] min-h-[280px] lg:min-h-0 flex flex-col">
+        <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="radio" class="w-3.5 h-3.5 text-amber-400 animate-pulse"></i>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">INTEL // MULTI-SOURCE DECK</h2>
+          </div>
+          <span id="auto-cycle-indicator" class="text-[9px] font-mono-hud text-cyan-300/70">SLIDE: 12s</span>
         </div>
-        <span id="auto-cycle-indicator" class="text-[9px] font-mono-hud text-cyan-300/70">SLIDE: 12s</span>
+
+        <!-- 5 Category Tabs -->
+        <div class="grid grid-cols-5 gap-1 mb-1.5 shrink-0" id="news-tabs">
+          <button data-cat="business" class="news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50">BIZ</button>
+          <button data-cat="local" class="news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">LOCAL</button>
+          <button data-cat="space" class="news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">SPACE</button>
+          <button data-cat="shield" class="news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">HERO</button>
+          <button data-cat="all" class="news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">ALL</button>
+        </div>
+
+        <!-- News Feed Cards -->
+        <div id="news-feed" class="flex-1 min-h-0 overflow-y-auto hud-scroll space-y-1.5 pr-1"></div>
       </div>
 
-      <!-- Category Filter Tabs (Starts on BIZ so all 3 cards fit cleanly without scrolling!) -->
-      <div class="grid grid-cols-4 gap-1 mb-1.5 shrink-0" id="news-tabs">
-        <button data-cat="business" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50">BIZ</button>
-        <button data-cat="local" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">LOCAL</button>
-        <button data-cat="shield" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">HERO</button>
-        <button data-cat="all" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">ALL</button>
-      </div>
-
-      <!-- News Feed Cards -->
-      <div id="news-feed" class="flex-1 overflow-y-auto hud-scroll space-y-1.5 pr-1"></div>
-
-      <!-- Live Action Log -->
-      <div class="mt-1.5 pt-1.5 border-t border-cyan-500/20 shrink-0">
-        <div class="text-[9px] font-mono-hud text-slate-400 mb-0.5 flex justify-between">
-          <span>J.A.R.V.I.S. EVENT LOG</span>
-          <span id="log-pulse" class="text-emerald-400">● LIVE</span>
+      <!-- S.A.B.E.R. Network Telemetry & J.A.R.V.I.S. Live Log -->
+      <div class="hud-panel rounded p-2.5 flex-1 min-h-[160px] lg:min-h-0 flex flex-col">
+        <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-emerald-300">S.A.B.E.R. // SYS TELEMETRY</h2>
+          </div>
+          <span id="log-pulse" class="text-[9px] font-mono-hud text-emerald-400">● LIVE</span>
         </div>
-        <div id="jarvis-log" class="text-[10px] font-mono-hud text-cyan-200/80 h-11 overflow-y-auto hud-scroll space-y-0.5"></div>
+
+        <!-- Live Subsystem Telemetry Bars -->
+        <div class="grid grid-cols-2 gap-x-2.5 gap-y-1 mb-2 shrink-0 font-mono-hud text-[9px]">
+          <div>
+            <div class="flex justify-between text-slate-400"><span>NEURAL CORE</span><span id="sys-cpu" class="text-cyan-300">42%</span></div>
+            <div class="h-1 bg-slate-900 rounded overflow-hidden mt-0.5"><div id="bar-cpu" class="h-full bg-cyan-400 transition-all duration-700" style="width:42%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-slate-400"><span>SAT ARRAY</span><span id="sys-sat" class="text-emerald-300">98%</span></div>
+            <div class="h-1 bg-slate-900 rounded overflow-hidden mt-0.5"><div id="bar-sat" class="h-full bg-emerald-400 transition-all duration-700" style="width:98%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-slate-400"><span>RADAR SWEEP</span><span id="sys-rad" class="text-amber-300">87%</span></div>
+            <div class="h-1 bg-slate-900 rounded overflow-hidden mt-0.5"><div id="bar-rad" class="h-full bg-amber-400 transition-all duration-700" style="width:87%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-slate-400"><span>FIREWALL</span><span id="sys-fw" class="text-sky-300">100%</span></div>
+            <div class="h-1 bg-slate-900 rounded overflow-hidden mt-0.5"><div id="bar-fw" class="h-full bg-sky-400 transition-all duration-700" style="width:100%"></div></div>
+          </div>
+        </div>
+
+        <!-- Live Action Log -->
+        <div class="text-[9px] font-mono-hud text-slate-400 mb-0.5 shrink-0">J.A.R.V.I.S. TELEMETRY LOG</div>
+        <div id="jarvis-log" class="flex-1 min-h-0 text-[10px] font-mono-hud text-cyan-200/80 overflow-y-auto hud-scroll space-y-0.5 pr-1"></div>
       </div>
     </section>
 
@@ -379,10 +477,8 @@
       <span class="font-hud text-[10px] font-bold tracking-widest text-rose-300">LIVE WIRE</span>
     </div>
 
-    <!-- Live Market Mini-Strip -->
     <div id="market-strip" class="hidden md:flex items-center gap-3 shrink-0 font-mono-hud text-[11px] border-r border-cyan-500/20 pr-3"></div>
 
-    <!-- Scrolling Marquee -->
     <div class="flex-1 overflow-hidden ticker-wrapper">
       <div id="ticker-track" class="ticker-track font-mono-hud text-xs text-cyan-100/90 gap-8"></div>
     </div>
@@ -402,7 +498,8 @@
       autoCycle: true,
       audioEnabled: false,
       activeNewsCat: 'business',
-      mapMode: '2d', // '2d' | '3d'
+      activeEventFilter: 'all',
+      mapMode: '2d',
       globeSpinning: true,
       globeRotation: [45, -20, 0],
       selectedTarget: null,
@@ -410,34 +507,46 @@
       seismicEvents: [],
       dispatchedIds: new Set(),
       customAnomalies: [],
-      rosterTick: 0
+      rosterTick: 0,
+      chatIdx: 0,
+      wavePhase: 0
     };
 
     const ROSTER = [
       {
-        id: 'ironman', name: 'IRON MAN // MK LXXXV', badge: 'ONLINE', color: 'text-cyan-300', coords: [-73.98, 40.75],
+        id: 'ironman', name: 'IRON MAN // MK LXXXV', badge: 'ONLINE', power: 99, color: 'text-cyan-300', coords: [-73.98, 40.75],
         statuses: ['PATROL: NYC-LI CORRIDOR', 'ALTITUDE: 34,200 FT // MACH 1.8', 'STARK TOWER DIAGNOSTICS'],
         detail: 'Tony Stark airborne over Manhattan–Long Island corridor. Arc Reactor output nominal.'
       },
       {
-        id: 'cap', name: 'CAPTAIN AMERICA', badge: 'READY', color: 'text-sky-300', coords: [-77.03, 38.90],
+        id: 'cap', name: 'CAPTAIN AMERICA', badge: 'READY', power: 96, color: 'text-sky-300', coords: [-77.03, 38.90],
         statuses: ['BRIEFING: D.C. HUB', 'TACTICAL DRILL: SECTOR 4', 'STRIKE TEAM STANDBY'],
         detail: 'Steve Rogers coordinating rapid-response tactical teams at Potomac Command.'
       },
       {
-        id: 'spidey', name: 'SPIDER-MAN // QUEENS', badge: 'LOCAL', color: 'text-emerald-300', coords: [-73.82, 40.73],
+        id: 'spidey', name: 'SPIDER-MAN // QUEENS', badge: 'LOCAL', power: 94, color: 'text-emerald-300', coords: [-73.82, 40.73],
         statuses: ['LOCAL SECTOR: QUEENS', 'PERIMETER SWEEP: NASSAU', 'WEB-NET TELEMETRY OK'],
         detail: 'Friendly Neighborhood perimeter sweep active across Queens & Nassau border.'
       },
       {
-        id: 'panther', name: 'BLACK PANTHER', badge: 'SECURED', color: 'text-amber-300', coords: [35.5, 1.5],
+        id: 'panther', name: 'BLACK PANTHER', badge: 'SECURED', power: 100, color: 'text-amber-300', coords: [35.5, 1.5],
         statuses: ['WAKANDA // OUTREACH', 'VIBRANIUM GRID: 100%', 'DESIGN GROUP LINKED'],
         detail: 'Birnin Zana Vibranium grid & international science exchange operating at 100%.'
       },
       {
-        id: 'thor', name: 'THOR ODINSON', badge: 'STANDBY', color: 'text-purple-300', coords: [6.0, 61.5],
+        id: 'thor', name: 'THOR ODINSON', badge: 'STANDBY', power: 98, color: 'text-purple-300', coords: [6.0, 61.5],
         statuses: ['OFF-WORLD // BIFROST', 'NEW ASGARD RELAY OK', 'DEEP-SPACE WATCH'],
         detail: 'New Asgard orbital relay monitored via S.A.B.E.R. deep-space telemetry.'
+      },
+      {
+        id: 'strange', name: 'DR. STRANGE // SANCTUM', badge: 'WARDED', power: 97, color: 'text-orange-300', coords: [-74.00, 40.73],
+        statuses: ['BLEECKER ST. SANCTUM', 'MULTIVERSE BARRIER: 99.8%', 'ASTRAL SCAN CLEAR'],
+        detail: 'Sorcerer Supreme monitoring dimensional rifts from Greenwich Village Sanctum.'
+      },
+      {
+        id: 'widow', name: 'BLACK WIDOW // RECON', badge: 'COVERT', power: 95, color: 'text-rose-300', coords: [13.4, 52.5],
+        statuses: ['EUROPEAN RELAY WATCH', 'ENCRYPTED INTEL SYNC', 'QUINJET-03 ON DECK'],
+        detail: 'S.H.I.E.L.D. covert intelligence sweep active across Central European sector.'
       }
     ];
 
@@ -450,79 +559,115 @@
       { id: 'sokovia-zone', type: 'CONTAINMENT', title: 'NOVI GRAD PERIMETER', coords: [20.45, 44.81], status: 'WATCH', severity: 'anomaly', desc: 'Residual Chitauri-era electromagnetic fluctuations monitored by S.H.I.E.L.D. drones.' }
     ];
 
+    // Expanded Multi-Source Grounded News Deck (Nov 2026)
     const NEWS_ITEMS = [
+      // BUSINESS (4)
       {
-        cat: 'business',
-        tag: 'BUSINESS',
-        source: 'Washington Post / CBC',
-        time: 'NOV 21, 2026',
+        cat: 'business', tag: 'BUSINESS', source: 'Washington Post / CBC', time: 'NOV 21, 2026',
         title: 'S&P 500, Dow & Nasdaq Enter Correction Territory',
         summary: 'Major U.S. indices fell over 10% from recent highs amid an AI & tech sell-off, with Nasdaq erasing 2026 gains (-2.7% YTD) and S&P 500 near 7,376.'
       },
       {
-        cat: 'business',
-        tag: 'BUSINESS',
-        source: 'CBC / The Guardian',
-        time: 'NOV 20, 2026',
+        cat: 'business', tag: 'BUSINESS', source: 'CBC / The Guardian', time: 'NOV 20, 2026',
         title: 'Anthropic Prices $1.51T IPO at $83/Share Amid Tech Volatility',
         summary: 'AI giant debuted at $83/share before broader chipmaker and AI sector jitters weighed on second-day trading across Wall Street.'
       },
       {
-        cat: 'business',
-        tag: 'BUSINESS',
-        source: 'CNN Business',
-        time: 'NOV 20, 2026',
+        cat: 'business', tag: 'BUSINESS', source: 'CNN Business', time: 'NOV 20, 2026',
         title: 'Wall Street Watches Nvidia Post-Earnings & Inflation Data',
-        summary: 'Tech volatility and Treasury yield shifts keep institutional desks on high alert heading into late November.'
+        summary: 'Tech volatility and Treasury yield shifts keep institutional desks on high alert following Nvidia earnings and CPI/PPI readings.'
       },
       {
-        cat: 'local',
-        tag: 'BABYLON / LI',
-        source: 'Town of Babylon',
-        time: 'NOV 16–21, 2026',
+        cat: 'business', tag: 'GLOBAL BIZ', source: 'The Guardian / SCMP', time: 'NOV 21, 2026',
+        title: 'IMF Warns AI Demand Could Pressure Rates; HK Pledges $20M to AIIB',
+        summary: 'IMF chief flags global rate pressures from AI infrastructure spend while Hong Kong expands Asian Infrastructure Investment Bank funding.'
+      },
+      // LOCAL / LONG ISLAND (4)
+      {
+        cat: 'local', tag: 'BABYLON / LI', source: 'Town of Babylon', time: 'NOV 16–21, 2026',
         title: 'Town of Babylon Winter Coat Drive & Toys for Tots Active',
         summary: 'Town Hall (200 Sunrise Hwy, Lindenhurst) partnering with U.S. Marine Corps Toys for Tots and hosting winter coat collection.'
       },
       {
-        cat: 'local',
-        tag: 'BABYLON / LI',
-        source: 'Newsday',
-        time: 'NOV 23, 2026',
+        cat: 'local', tag: 'BABYLON / LI', source: 'Newsday', time: 'NOV 23, 2026',
         title: 'Long Island Cares Produce Van at North Babylon Library',
         summary: 'Fresh locally sourced produce available Nov 23 at North Babylon Public Library; residents advised to bring reusable bags.'
       },
       {
-        cat: 'local',
-        tag: 'BABYLON / LI',
-        source: 'I Love Babylon / NWS',
-        time: 'NOV 2026',
-        title: 'Babylon Budget Update & Fire Island Inlet Marine Advisory',
-        summary: 'Town budget sets 5.8% tax adjustment with raises removed. NWS ANZ355 reports NW/NE winds 5–10 kt and 1–2 ft seas.'
+        cat: 'local', tag: 'BABYLON / LI', source: 'I Love Babylon', time: 'NOV 21, 2026',
+        title: 'Paws of Giving Final Day & Lindenhurst Farmers Market',
+        summary: 'Babylon Animal Shelter wraps its pet supply drive today alongside North Babylon E-Waste Recycling and Lindenhurst Farmers Market.'
       },
       {
-        cat: 'shield',
-        tag: 'S.H.I.E.L.D.',
-        source: 'S.A.B.E.R. ORBITAL',
-        time: 'LIVE TELEMETRY',
+        cat: 'local', tag: 'BABYLON / LI', source: 'NWS Marine / ILB', time: 'NOV 2026',
+        title: 'Babylon Budget Sets 5.8% Hike; Fire Island Inlet Seas 1–2 Ft',
+        summary: 'Town budget removes raises with a 5.8% tax adjustment. NWS ANZ355 reports NW/NE winds 5–10 kt across South Shore waters.'
+      },
+      // SPACE & SCIENCE (4)
+      {
+        cat: 'space', tag: 'NASA / JPL', time: 'NOV 18–21, 2026', source: 'NASA JPL',
+        title: 'Voyager 1 Makes History Reaching One Light-Day From Earth',
+        summary: 'After 49+ years in flight, humanity’s farthest spacecraft crossed 16.1 billion miles—light now takes 24 hours to reach Earth.'
+      },
+      {
+        cat: 'space', tag: 'ARTEMIS', time: 'NOV 21, 2026', source: 'ScienceDaily',
+        title: 'NASA Fires RS-25 Moon Rocket Engine for 200-Second Test',
+        summary: 'Full-duration hot-fire test validates upgrades ahead of the 2028 Artemis IV lunar landing mission.'
+      },
+      {
+        cat: 'space', tag: 'ISS OPS', time: 'NOV 20, 2026', source: 'NASA',
+        title: 'SpaceX Dragon Undocks From ISS Packed With Science Cargo',
+        summary: 'Dragon departed the orbiting lab as NASA sets launch coverage for Northrop Grumman CRS-25 resupply.'
+      },
+      {
+        cat: 'space', tag: 'DEEP SPACE', time: 'NOV 18, 2026', source: 'NASA Science',
+        title: 'Scientists Find Clues to Ancient Ice Beyond Neptune',
+        summary: 'New Kuiper Belt observations shed light on primordial ice chemistry from the early solar system.'
+      },
+      // S.H.I.E.L.D. / SUPERHERO (4)
+      {
+        cat: 'shield', tag: 'S.H.I.E.L.D.', source: 'S.A.B.E.R. ORBITAL', time: 'LIVE TELEMETRY',
         title: 'S.A.B.E.R. Perimeter Clears Low-Earth Orbit Corridor',
         summary: 'Nick Fury’s orbital defense grid reports zero hostile signatures across North Atlantic and Tri-State airspace.'
       },
       {
-        cat: 'shield',
-        tag: 'STARK IND.',
-        source: 'J.A.R.V.I.S. GRID',
-        time: 'LIVE TELEMETRY',
+        cat: 'shield', tag: 'STARK IND.', source: 'J.A.R.V.I.S. GRID', time: 'LIVE TELEMETRY',
         title: 'Clean Energy Arc-Reactor Substation Online in Suffolk Sector',
         summary: 'Auxiliary Stark clean-energy capacitor bank operating at 98.4% efficiency, insulating local grid from peak load.'
       },
       {
-        cat: 'shield',
-        tag: 'AVENGERS',
-        source: 'FRIDAY DISPATCH',
-        time: 'LIVE TELEMETRY',
+        cat: 'shield', tag: 'AVENGERS', source: 'FRIDAY DISPATCH', time: 'LIVE TELEMETRY',
         title: 'Mark LXXXV Nanotech Diagnostics & Quinjet Readiness Verified',
         summary: 'All primary East Coast response assets cleared for sub-5-minute deployment from Upstate Compound.'
+      },
+      {
+        cat: 'shield', tag: 'WAKANDA', source: 'SHURI LABS', time: 'LIVE TELEMETRY',
+        title: 'Kimoyo Satellite Mesh Synced With S.H.I.E.L.D. Command',
+        summary: 'Quantum-encrypted relay boosts global anomaly detection speed by 34% across Eastern Seaboard nodes.'
       }
+    ];
+
+    const ACTIVE_EVENTS = [
+      { id: 'ev1', type: 'local', badge: 'TODAY', color: 'text-amber-300 border-amber-500/35 bg-amber-500/15', title: 'Paws of Giving Pet Supply Drive (Final Day)', where: 'Babylon Animal Shelter • 80 New Hwy', time: 'NOV 21' },
+      { id: 'ev2', type: 'local', badge: 'NOV 21–22', color: 'text-amber-300 border-amber-500/35 bg-amber-500/15', title: 'Fall Classic Lacrosse Tournament', where: 'Farmingdale State College, NY', time: 'ALL WEEKEND' },
+      { id: 'ev3', type: 'ops', badge: 'LIVE OP', color: 'text-cyan-300 border-cyan-500/35 bg-cyan-500/15', title: 'Voyager-1 1-Light-Day Deep Space Relay', where: 'S.A.B.E.R. / NASA Deep Space Network', time: 'ACTIVE' },
+      { id: 'ev4', type: 'local', badge: 'MON NOV 23', color: 'text-emerald-300 border-emerald-500/35 bg-emerald-500/15', title: 'Long Island Cares Produce Van', where: 'North Babylon Public Library', time: 'UPCOMING' },
+      { id: 'ev5', type: 'ops', badge: 'PATROL', color: 'text-purple-300 border-purple-500/35 bg-purple-500/15', title: 'NYC–Long Island Airspace Sweep (MK LXXXV)', where: 'Queens → Babylon Coastal Corridor', time: 'IN PROGRESS' },
+      { id: 'ev6', type: 'local', badge: 'ACTIVE', color: 'text-amber-300 border-amber-500/35 bg-amber-500/15', title: 'Town of Babylon Winter Coat Drive & Toys for Tots', where: 'Babylon Town Hall • 200 Sunrise Hwy', time: 'ONGOING' },
+      { id: 'ev7', type: 'local', badge: 'NOV 26–27', color: 'text-slate-300 border-slate-500/35 bg-slate-500/15', title: 'Town of Babylon Offices Closed (Thanksgiving)', where: 'Reopening Mon Nov 30 @ 9:00 AM', time: 'HOLIDAY' }
+    ];
+
+    const HERO_CHAT_SCRIPT = [
+      { sender: 'J.A.R.V.I.S.', tag: 'AI', color: 'text-cyan-300', msg: 'Babylon command node synchronized. Local atmospheric conditions nominal; S.A.B.E.R. orbital sweep clear.' },
+      { sender: 'TONY STARK', tag: 'MK85', color: 'text-amber-300', msg: 'Just flew past Jones Beach—Great South Bay looks calm. Tell Fury I fixed his satellite latency by 14ms.' },
+      { sender: 'NICK FURY', tag: 'DIR', color: 'text-rose-400', msg: 'I didn’t ask you to touch my orbital array, Stark. Keep an eye on those Novi Grad EM spikes.' },
+      { sender: 'PETER PARKER', tag: 'SPIDEY', color: 'text-emerald-300', msg: 'Hey Mr. Stark! Queens and Nassau border are totally quiet. Also, did anyone see Nasdaq today? Yikes.' },
+      { sender: 'STEVE ROGERS', tag: 'CAP', color: 'text-sky-300', msg: 'Quinjet Alpha-02 is fueled and on 4-minute standby at Upstate Compound. Good work, team.' },
+      { sender: 'SHURI', tag: 'WAKANDA', color: 'text-purple-300', msg: 'Kimoyo mesh is now routing clean telemetry to Babylon HQ. Try not to overload the capacitors, Tony.' },
+      { sender: 'DR. STRANGE', tag: 'SANCTUM', color: 'text-orange-300', msg: 'Dimensional wards over New York and London are holding at 99.8%. Carry on with your gadgets.' },
+      { sender: 'J.A.R.V.I.S.', tag: 'AI', color: 'text-cyan-300', msg: 'NASA’s Voyager 1 has officially crossed 1.00 light-day from Earth. Deep-space relay signal locked.' },
+      { sender: 'THOR', tag: 'ASGARD', color: 'text-indigo-300', msg: 'One light-day? Impressive for Midgardian craft! Send my regards to the Long Island sector.' },
+      { sender: 'NATASHA', tag: 'RECON', color: 'text-rose-300', msg: 'Central European comms burst traced to a false alarm. Returning to covert monitoring.' }
     ];
 
     const MARKETS = [
@@ -534,7 +679,7 @@
     ];
 
     // =========================================================================
-    // 2. WEB AUDIO HUD CHIMES (Synthesized, Muted by Default)
+    // 2. WEB AUDIO HUD CHIMES
     // =========================================================================
     let audioCtx = null;
     function playHudChime(freq = 880, dur = 0.08, type = 'sine') {
@@ -564,7 +709,7 @@
       const row = document.createElement('div');
       row.innerHTML = `<span class="text-amber-400/80">[${now}]</span> ${msg}`;
       logEl.prepend(row);
-      while (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
+      while (logEl.children.length > 25) logEl.removeChild(logEl.lastChild);
     }
 
     function showToast(msg) {
@@ -585,7 +730,7 @@
     }
 
     // =========================================================================
-    // 4. WEATHER MODULE (Live Open-Meteo + Grounded Nov 2026 Fallback)
+    // 4. WEATHER & TELEMETRY WAVEFORM
     // =========================================================================
     function weatherCodeToText(code) {
       if (code === 0) return 'CLEAR SKY';
@@ -599,7 +744,7 @@
     function renderSparkline(temps) {
       const svg = d3.select('#wx-sparkline');
       svg.selectAll('*').remove();
-      const w = 260, h = 36, pad = 6;
+      const w = 260, h = 34, pad = 6;
       const x = d3.scaleLinear().domain([0, temps.length - 1]).range([pad, w - pad]);
       const minT = Math.min(...temps) - 2;
       const maxT = Math.max(...temps) + 2;
@@ -619,6 +764,24 @@
       });
     }
 
+    function renderTelemetryWave() {
+      const svg = d3.select('#telemetry-wave');
+      svg.selectAll('*').remove();
+      const w = 260, h = 32;
+      const pts1 = [], pts2 = [];
+      for (let i = 0; i <= 40; i++) {
+        const x = (i / 40) * w;
+        const y1 = h / 2 + Math.sin(i * 0.45 + state.wavePhase) * 8 + Math.cos(i * 0.9 - state.wavePhase) * 3;
+        const y2 = h / 2 + Math.cos(i * 0.35 - state.wavePhase * 1.2) * 6;
+        pts1.push([x, y1]);
+        pts2.push([x, y2]);
+      }
+      const line = d3.line().curve(d3.curveBasis);
+      svg.append('line').attr('x1', 0).attr('x2', w).attr('y1', h / 2).attr('y2', h / 2).attr('stroke', 'rgba(0,229,255,0.12)').attr('stroke-dasharray', '3 3');
+      svg.append('path').attr('d', line(pts2)).attr('fill', 'none').attr('stroke', 'rgba(255, 179, 0, 0.55)').attr('stroke-width', 1.2);
+      svg.append('path').attr('d', line(pts1)).attr('fill', 'none').attr('stroke', '#00e5ff').attr('stroke-width', 1.6);
+    }
+
     async function loadWeather() {
       const badge = document.getElementById('weather-source-badge');
       try {
@@ -635,8 +798,7 @@
         document.getElementById('wx-humid').textContent = `${c.relative_humidity_2m}%`;
         document.getElementById('wx-press').textContent = `${Math.round(c.surface_pressure)} hPa`;
 
-        const hourly12 = data.hourly.temperature_2m.slice(0, 12);
-        renderSparkline(hourly12);
+        renderSparkline(data.hourly.temperature_2m.slice(0, 12));
 
         const fcEl = document.getElementById('wx-forecast');
         fcEl.innerHTML = '';
@@ -672,7 +834,7 @@
     }
 
     // =========================================================================
-    // 5. GLOBAL TACTICAL MAP (D3 + TopoJSON + Live USGS Seismic Feed)
+    // 5. GLOBAL TACTICAL MAP
     // =========================================================================
     let globeTimer = null;
 
@@ -682,7 +844,7 @@
           const worldRes = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
           if (!worldRes.ok) throw new Error('Atlas fetch failed');
           state.worldData = await worldRes.json();
-        } catch (e) {
+        } catch (_) {
           addLog('World Atlas offline — using orbital grid projection.');
         }
       }
@@ -714,7 +876,7 @@
       const container = document.getElementById('map-container');
       const svg = d3.select('#world-map');
       const width = container.clientWidth || 720;
-      const height = container.clientHeight || 420;
+      const height = container.clientHeight || 340;
       svg.attr('viewBox', `0 0 ${width} ${height}`);
       svg.selectAll('*').remove();
 
@@ -731,7 +893,7 @@
           .rotate(state.globeRotation)
           .clipAngle(90);
       } else {
-        projection = d3.geoNaturalEarth1().fitExtent([[18, 26], [width - 18, height - 26]], countries || { type: 'Sphere' });
+        projection = d3.geoNaturalEarth1().fitExtent([[14, 24], [width - 14, height - 24]], countries || { type: 'Sphere' });
       }
 
       const path = d3.geoPath(projection);
@@ -787,12 +949,7 @@
         const pt = projection(item.coords);
         if (!pt) return;
 
-        const colorMap = {
-          hq: '#00e676',
-          shield: '#00e5ff',
-          seismic: '#ffb300',
-          anomaly: '#ff3b5c'
-        };
+        const colorMap = { hq: '#00e676', shield: '#00e5ff', seismic: '#ffb300', anomaly: '#ff3b5c' };
         const col = colorMap[item.severity] || '#00e5ff';
 
         const g = markerGroup.append('g')
@@ -801,28 +958,13 @@
           .on('click', () => openDossier(item));
 
         if (item.severity === 'hq' || item.severity === 'anomaly') {
-          g.append('circle')
-            .attr('r', 6)
-            .attr('fill', 'none')
-            .attr('stroke', col)
-            .attr('stroke-width', 1.5)
-            .attr('class', 'pulse-ring');
+          g.append('circle').attr('r', 6).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1.5).attr('class', 'pulse-ring');
         }
 
-        g.append('circle')
-          .attr('r', item.severity === 'hq' ? 4.5 : 3.5)
-          .attr('fill', col)
-          .attr('stroke', '#040811')
-          .attr('stroke-width', 1);
+        g.append('circle').attr('r', item.severity === 'hq' ? 4.5 : 3.5).attr('fill', col).attr('stroke', '#040811').attr('stroke-width', 1);
 
         if (item.severity === 'hq' || item.severity === 'anomaly') {
-          g.append('text')
-            .attr('x', 8)
-            .attr('y', 3)
-            .attr('fill', col)
-            .attr('font-size', '9px')
-            .attr('font-family', 'JetBrains Mono')
-            .attr('font-weight', '700')
+          g.append('text').attr('x', 8).attr('y', 3).attr('fill', col).attr('font-size', '9px').attr('font-family', 'JetBrains Mono').attr('font-weight', '700')
             .text(item.severity === 'hq' ? 'HQ: BABYLON' : item.title.slice(0, 16));
         }
       });
@@ -842,7 +984,7 @@
     }
 
     // =========================================================================
-    // 6. ROSTER, NEWS FEED & LIVE TICKER
+    // 6. ROSTER, CHAT, EVENTS, NEWS & TICKER
     // =========================================================================
     function renderRoster() {
       const el = document.getElementById('roster-list');
@@ -852,28 +994,66 @@
         const btn = document.createElement('button');
         btn.className = 'w-full text-left bg-slate-900/70 hover:bg-cyan-950/50 border border-cyan-500/15 hover:border-cyan-400/45 rounded px-2 py-1.5 transition flex items-center justify-between gap-2';
         btn.innerHTML = `
-          <div class="min-w-0">
-            <div class="font-hud text-[10px] font-bold ${hero.color} truncate">${hero.name}</div>
-            <div class="font-mono-hud text-[9px] text-slate-400 truncate">${statusText}</div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+              <span class="font-hud text-[10px] font-bold ${hero.color} truncate">${hero.name}</span>
+            </div>
+            <div class="font-mono-hud text-[9px] text-slate-400 truncate mt-0.5">${statusText}</div>
           </div>
-          <span class="shrink-0 text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-200 border border-cyan-500/25">${hero.badge}</span>
+          <div class="shrink-0 text-right">
+            <span class="block text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-200 border border-cyan-500/25">${hero.badge}</span>
+          </div>
         `;
         btn.addEventListener('click', () => {
           if (state.mapMode === '3d') {
             state.globeRotation = [-hero.coords[0], -hero.coords[1], 0];
             renderMap();
           }
-          openDossier({
-            id: hero.id,
-            type: 'AVENGER ASSET',
-            title: hero.name,
-            coords: hero.coords,
-            status: hero.badge,
-            severity: 'shield',
-            desc: hero.detail
-          });
+          openDossier({ id: hero.id, type: 'AVENGER ASSET', title: hero.name, coords: hero.coords, status: hero.badge, severity: 'shield', desc: hero.detail });
         });
         el.appendChild(btn);
+      });
+    }
+
+    function appendChatMessage(sender, tag, color, msg) {
+      const feed = document.getElementById('hero-chat-feed');
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
+      const div = document.createElement('div');
+      div.className = 'chat-msg-enter bg-slate-900/75 border border-cyan-500/15 rounded px-2 py-1.5';
+      div.innerHTML = `
+        <div class="flex items-center justify-between gap-2 mb-0.5">
+          <span class="font-hud text-[10px] font-bold ${color}">${sender} <span class="font-mono-hud text-[8px] px-1 rounded bg-slate-800 text-slate-300 ml-1">${tag}</span></span>
+          <span class="font-mono-hud text-[9px] text-slate-500">${now}</span>
+        </div>
+        <p class="text-[11px] text-slate-200 leading-snug">${msg}</p>
+      `;
+      feed.appendChild(div);
+      while (feed.children.length > 18) feed.removeChild(feed.firstChild);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function renderEvents() {
+      const el = document.getElementById('events-list');
+      const filtered = state.activeEventFilter === 'all'
+        ? ACTIVE_EVENTS
+        : ACTIVE_EVENTS.filter(ev => ev.type === state.activeEventFilter);
+
+      el.innerHTML = filtered.map(ev => `
+        <div class="bg-slate-900/75 border border-cyan-500/15 rounded px-2 py-1.5 flex items-start justify-between gap-2 hover:border-amber-400/40 transition">
+          <div class="min-w-0">
+            <div class="text-[11px] font-semibold text-cyan-100 leading-snug truncate">${ev.title}</div>
+            <div class="text-[9px] font-mono-hud text-slate-400 truncate mt-0.5">${ev.where}</div>
+          </div>
+          <span class="shrink-0 text-[8px] font-mono-hud px-1.5 py-0.5 rounded border ${ev.color} whitespace-nowrap">${ev.badge}</span>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.ef-btn').forEach(btn => {
+        const active = btn.dataset.ef === state.activeEventFilter;
+        btn.className = active
+          ? 'ef-btn px-1.5 py-0.5 rounded text-[9px] font-mono-hud bg-amber-500/25 text-amber-200 border border-amber-400/50'
+          : 'ef-btn px-1.5 py-0.5 rounded text-[9px] font-mono-hud bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-amber-200';
       });
     }
 
@@ -888,9 +1068,11 @@
           ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
           : n.cat === 'local'
             ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-            : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+            : n.cat === 'space'
+              ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+              : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
         return `
-          <article class="bg-slate-900/70 border border-cyan-500/15 rounded p-2 hover:border-cyan-400/40 transition">
+          <article class="bg-slate-900/75 border border-cyan-500/15 rounded p-2 hover:border-cyan-400/40 transition">
             <div class="flex items-center justify-between gap-2 mb-0.5">
               <span class="text-[9px] font-mono-hud px-1.5 py-0.5 rounded border ${badgeCol}">${n.tag}</span>
               <span class="text-[9px] font-mono-hud text-slate-400 truncate">${n.source} • ${n.time}</span>
@@ -904,8 +1086,8 @@
       document.querySelectorAll('.news-tab').forEach(btn => {
         const active = btn.dataset.cat === state.activeNewsCat;
         btn.className = active
-          ? 'news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50'
-          : 'news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200';
+          ? 'news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50'
+          : 'news-tab py-1 rounded text-[9px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200';
       });
     }
 
@@ -923,18 +1105,41 @@
     }
 
     // =========================================================================
-    // 7. DYNAMIC UPDATES & EVENT LISTENERS
+    // 7. DYNAMIC LOOPS & EVENT LISTENERS
     // =========================================================================
     function startDynamicLoops() {
       updateClocks();
       setInterval(updateClocks, 1000);
 
-      // Live telemetry & market tick every 4s
+      // Animate waveform smoothly every 120ms
+      renderTelemetryWave();
       setInterval(() => {
-        const output = (3.18 + Math.random() * 0.08).toFixed(2);
-        const pct = Math.round(91 + Math.random() * 6);
+        state.wavePhase += 0.25;
+        renderTelemetryWave();
+      }, 150);
+
+      // Live telemetry & market tick every 3.5s
+      setInterval(() => {
+        const output = (3.18 + Math.random() * 0.09).toFixed(2);
+        const pct = Math.round(91 + Math.random() * 7);
         document.getElementById('reactor-output').textContent = `${output} GJ/s`;
         document.getElementById('reactor-bar').style.width = `${pct}%`;
+
+        document.getElementById('telemetry-flux').textContent = `${(97.8 + Math.random() * 1.4).toFixed(1)} THz`;
+        document.getElementById('tel-grid').textContent = `${(92.5 + Math.random() * 3.5).toFixed(1)}%`;
+        document.getElementById('tel-temp').textContent = `${Math.round(309 + Math.random() * 6)} K`;
+
+        const uplink = (4.7 + Math.random() * 0.35).toFixed(2);
+        const lat = Math.round(9 + Math.random() * 5);
+        document.getElementById('hdr-uplink').textContent = `${uplink} Gbps`;
+        document.getElementById('hdr-latency').textContent = `${lat}ms`;
+
+        const cpu = Math.round(35 + Math.random() * 24);
+        const rad = Math.round(82 + Math.random() * 14);
+        document.getElementById('sys-cpu').textContent = `${cpu}%`;
+        document.getElementById('bar-cpu').style.width = `${cpu}%`;
+        document.getElementById('sys-rad').textContent = `${rad}%`;
+        document.getElementById('bar-rad').style.width = `${rad}%`;
 
         MARKETS.forEach(m => {
           const delta = (Math.random() - 0.5) * 0.08;
@@ -946,10 +1151,23 @@
           const col = up ? 'text-emerald-400' : 'text-rose-400';
           return `<span><strong class="text-cyan-200">${m.sym}</strong> ${m.price.toFixed(2)} <span class="${col}">${up ? '▲' : '▼'}${Math.abs(m.chg).toFixed(2)}%</span></span>`;
         }).join('');
-      }, 4000);
+      }, 3500);
 
-      // Auto-cycle Intel Slides (BIZ -> LOCAL -> HERO) every 12s
-      const slideCats = ['business', 'local', 'shield'];
+      // Seed initial 4 Hero Chat messages, then stream a new one every 9s
+      for (let i = 0; i < 4; i++) {
+        const m = HERO_CHAT_SCRIPT[state.chatIdx % HERO_CHAT_SCRIPT.length];
+        appendChatMessage(m.sender, m.tag, m.color, m.msg);
+        state.chatIdx++;
+      }
+      setInterval(() => {
+        const m = HERO_CHAT_SCRIPT[state.chatIdx % HERO_CHAT_SCRIPT.length];
+        appendChatMessage(m.sender, m.tag, m.color, m.msg);
+        state.chatIdx++;
+        playHudChime(920, 0.04);
+      }, 9000);
+
+      // Auto-cycle Intel Slides (BIZ -> LOCAL -> SPACE -> HERO) every 12s
+      const slideCats = ['business', 'local', 'space', 'shield'];
       setInterval(() => {
         if (!state.autoCycle) return;
         const idx = (slideCats.indexOf(state.activeNewsCat) + 1) % slideCats.length;
@@ -958,12 +1176,12 @@
         playHudChime(680, 0.05);
       }, 12000);
 
-      // Dynamic Avenger Roster patrol telemetry rotation every 18s
+      // Rotate Avenger patrol telemetry every 16s
       setInterval(() => {
         state.rosterTick += 1;
         renderRoster();
         addLog('Avenger patrol telemetry updated.');
-      }, 18000);
+      }, 16000);
 
       // Refresh live USGS seismic every 5 min & Open-Meteo weather every 10 min
       setInterval(loadWorldMapAndSeismic, 300000);
@@ -1049,18 +1267,11 @@
           { title: 'ATLANTIS SONAR ECHO', coords: [-55.0, 28.0], desc: 'Unidentified high-velocity submerged contact in Mid-Atlantic Ridge.' }
         ];
         const pick = samples[Math.floor(Math.random() * samples.length)];
-        const anomaly = {
-          id: 'anom-' + Date.now(),
-          type: 'PRIORITY ANOMALY',
-          title: pick.title,
-          coords: pick.coords,
-          status: 'INTERCEPT REQUIRED',
-          severity: 'anomaly',
-          desc: pick.desc
-        };
+        const anomaly = { id: 'anom-' + Date.now(), type: 'PRIORITY ANOMALY', title: pick.title, coords: pick.coords, status: 'INTERCEPT REQUIRED', severity: 'anomaly', desc: pick.desc };
         state.customAnomalies.push(anomaly);
         playHudChime(520, 0.16, 'sawtooth');
         addLog(`ALERT: ${anomaly.title} detected!`);
+        appendChatMessage('J.A.R.V.I.S.', 'ALERT', 'text-rose-400', `Priority anomaly logged: ${anomaly.title}. Recommending immediate reconnaissance.`);
         showToast(`ANOMALY DETECTED: ${anomaly.title}`);
         renderMap();
         openDossier(anomaly);
@@ -1075,10 +1286,41 @@
         state.dispatchedIds.add(state.selectedTarget.id);
         playHudChime(1120, 0.1);
         addLog(`Quinjet Alpha-02 dispatched to ${state.selectedTarget.title}.`);
+        appendChatMessage('STEVE ROGERS', 'CAP', 'text-sky-300', `Copy that, HQ. Quinjet Alpha-02 is en route to ${state.selectedTarget.title}.`);
         showToast(`DISPATCH CONFIRMED: ${state.selectedTarget.title}`);
         openDossier(state.selectedTarget);
       });
 
+      // Interactive Comms Chat Form
+      document.getElementById('chat-form').addEventListener('submit', e => {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        appendChatMessage('COMMANDER', 'HQ', 'text-emerald-300', text);
+        input.value = '';
+        playHudChime(1020, 0.06);
+        setTimeout(() => {
+          const replies = [
+            `Acknowledged, Commander. Routing "${text.slice(0, 32)}" through S.A.B.E.R. tactical relays now.`,
+            `Copy that, HQ. All East Coast Avengers and Babylon sector sensors are synced to your directive.`,
+            `Understood, sir. Running diagnostics and updating the Avengers briefing queue.`
+          ];
+          appendChatMessage('J.A.R.V.I.S.', 'AI', 'text-cyan-300', replies[Math.floor(Math.random() * replies.length)]);
+          playHudChime(840, 0.06);
+        }, 700);
+      });
+
+      // Event Filter Buttons
+      document.getElementById('event-filter-btns').addEventListener('click', e => {
+        const btn = e.target.closest('.ef-btn');
+        if (!btn) return;
+        state.activeEventFilter = btn.dataset.ef;
+        playHudChime(780, 0.05);
+        renderEvents();
+      });
+
+      // News Tabs
       document.getElementById('news-tabs').addEventListener('click', e => {
         const btn = e.target.closest('.news-tab');
         if (!btn) return;
@@ -1096,11 +1338,12 @@
     window.addEventListener('DOMContentLoaded', () => {
       if (window.lucide) lucide.createIcons();
       renderRoster();
+      renderEvents();
       renderNews();
       renderTicker();
       bindEvents();
       startDynamicLoops();
-      addLog('S.H.I.E.L.D. / Stark Command OS initialized.');
+      addLog('S.H.I.E.L.D. / Stark Command OS v15.2 initialized.');
       renderMap();
       loadWeather();
       loadWorldMapAndSeismic();
