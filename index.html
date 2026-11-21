@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S.H.I.E.L.D. // STARK TACTICAL COMMAND MONITOR</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;800&display=swap');
+
+    :root {
+      --hud-cyan: #00e5ff;
+      --hud-amber: #ffb300;
+      --hud-crimson: #ff3b5c;
+      --hud-emerald: #00e676;
+      --hud-bg: #050911;
+      --hud-panel: rgba(8, 17, 30, 0.86);
+      --hud-accent: #00e5ff;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--hud-bg);
+      color: #e2f1ff;
+      background-image:
+        radial-gradient(circle at 50% 45%, rgba(0, 229, 255, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
+      background-size: 100% 100%, 36px 36px, 36px 36px;
+    }
+
+    .font-hud { font-family: 'Orbitron', sans-serif; }
+    .font-mono-hud { font-family: 'JetBrains Mono', monospace; }
+
+    /* Subtle CRT / Hologram Scanline Overlay */
+    .scanlines {
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 229, 255, 0.018) 3px,
+        rgba(0, 0, 0, 0.08) 4px
+      );
+      pointer-events: none;
+    }
+
+    .hud-panel {
+      background: var(--hud-panel);
+      border: 1px solid rgba(0, 229, 255, 0.22);
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.06), inset 0 0 18px rgba(0, 229, 255, 0.03);
+      backdrop-filter: blur(8px);
+      position: relative;
+    }
+
+    .hud-panel::before,
+    .hud-panel::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+    }
+    .hud-panel::before {
+      top: -1px; left: -1px;
+      border-top: 2px solid var(--hud-accent);
+      border-left: 2px solid var(--hud-accent);
+    }
+    .hud-panel::after {
+      bottom: -1px; right: -1px;
+      border-bottom: 2px solid var(--hud-accent);
+      border-right: 2px solid var(--hud-accent);
+    }
+
+    .threat-1 { --hud-accent: #ff3b5c; }
+    .threat-2 { --hud-accent: #ff6d00; }
+    .threat-3 { --hud-accent: #ffb300; }
+    .threat-4 { --hud-accent: #00e5ff; }
+    .threat-5 { --hud-accent: #00e5ff; }
+
+    /* Custom Scrollbar */
+    .hud-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .hud-scroll::-webkit-scrollbar-track { background: rgba(0, 229, 255, 0.04); }
+    .hud-scroll::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.35); border-radius: 2px; }
+
+    /* Arc Reactor Spin */
+    @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    .spin-slow { animation: spinSlow 24s linear infinite; transform-origin: center; }
+    .spin-reverse { animation: spinReverse 14s linear infinite; transform-origin: center; }
+
+    /* Radar Sweep */
+    @keyframes radarPulse {
+      0% { transform: scale(0.4); opacity: 0.9; }
+      100% { transform: scale(2.8); opacity: 0; }
+    }
+    .pulse-ring {
+      animation: radarPulse 2.6s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* Live Ticker Marquee */
+    @keyframes tickerScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-track {
+      display: flex;
+      width: max-content;
+      animation: tickerScroll 65s linear infinite;
+    }
+    .ticker-wrapper:hover .ticker-track {
+      animation-play-state: paused;
+    }
+  </style>
+</head>
+<body class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col selection:bg-cyan-500/30 threat-5" id="app-root">
+  <!-- Holographic Scanline Layer -->
+  <div class="fixed inset-0 scanlines z-50"></div>
+
+  <!-- TOP COMMAND HEADER -->
+  <header class="shrink-0 border-b border-cyan-500/25 bg-[#060d18]/95 px-3 sm:px-4 py-1.5 flex flex-wrap lg:flex-nowrap items-center justify-between gap-2 z-20">
+    <!-- Left: S.H.I.E.L.D. / Stark Insignia -->
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="relative w-9 h-9 flex items-center justify-center shrink-0">
+        <svg viewBox="0 0 64 64" class="w-9 h-9">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="6 3" class="spin-slow" />
+          <circle cx="32" cy="32" r="22" fill="rgba(0,229,255,0.08)" stroke="#ffb300" stroke-width="1.5" />
+          <polygon points="32,14 44,24 38,24 38,34 46,30 42,42 32,49 22,42 18,30 26,34 26,24 20,24" fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-linejoin="round" />
+          <circle cx="32" cy="31" r="4.5" fill="#00e5ff" opacity="0.9" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <h1 class="font-hud text-xs sm:text-sm font-bold tracking-widest text-cyan-300 whitespace-nowrap">S.H.I.E.L.D. // STARK OS</h1>
+          <span class="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono-hud bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            SAT-LINK ACTIVE
+          </span>
+        </div>
+        <p class="text-[10px] font-mono-hud text-cyan-200/60 tracking-wider truncate">SECTOR: BABYLON, NY [40.6957°N, 73.3257°W] • J.A.R.V.I.S. v14.8</p>
+      </div>
+    </div>
+
+    <!-- Center: Interactive DEFCON / Threat Level -->
+    <div class="flex items-center gap-2 bg-slate-900/80 border border-cyan-500/20 rounded px-2 py-1 shrink-0">
+      <span class="text-[9px] font-mono-hud uppercase tracking-wider text-slate-400 hidden xl:inline">Threat Level:</span>
+      <select id="threat-select" aria-label="Threat Level" class="bg-transparent text-[11px] font-hud font-bold tracking-wider text-cyan-300 focus:outline-none cursor-pointer">
+        <option value="5" class="bg-slate-900 text-cyan-300">LVL 5 // NOMINAL</option>
+        <option value="4" class="bg-slate-900 text-sky-300">LVL 4 // ELEVATED</option>
+        <option value="3" class="bg-slate-900 text-amber-300">LVL 3 // GUARDED</option>
+        <option value="2" class="bg-slate-900 text-orange-400">LVL 2 // SEVERE</option>
+        <option value="1" class="bg-slate-900 text-rose-400">LVL 1 // OMEGA ALERT</option>
+      </select>
+      <span id="threat-badge" class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00e5ff]"></span>
+    </div>
+
+    <!-- Right: Clocks & HUD Controls -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="text-right hidden sm:block font-mono-hud whitespace-nowrap">
+        <div id="clock-local" class="text-xs font-bold text-cyan-100 leading-tight">--:--:-- EST</div>
+        <div id="clock-utc" class="text-[9px] text-cyan-400/70">UTC --:--:-- • --- --, ----</div>
+      </div>
+
+      <button id="btn-autocycle" class="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono-hud border border-cyan-500/40 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 transition whitespace-nowrap" title="Auto-cycle intel slides & map views">
+        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+        <span class="hidden md:inline">SLIDES: ON</span>
+      </button>
+
+      <button id="btn-audio" class="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono-hud border border-slate-700 bg-slate-800/70 text-slate-300 hover:border-cyan-500/40 transition whitespace-nowrap" title="Toggle Stark HUD audio chimes">
+        <i data-lucide="volume-x" id="audio-icon" class="w-3 h-3"></i>
+        <span class="hidden md:inline" id="audio-label">MUTE</span>
+      </button>
+
+      <button id="btn-fullscreen" class="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono-hud border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition whitespace-nowrap" title="Toggle Fullscreen TV/Monitor Mode">
+        <i data-lucide="maximize-2" class="w-3 h-3"></i>
+        <span class="hidden lg:inline">TV MODE</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN 3-COLUMN WIDESCREEN COMMAND GRID -->
+  <main class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 p-2 z-10 overflow-y-auto lg:overflow-hidden">
+
+    <!-- LEFT COLUMN (3 cols): WEATHER + STARK TELEMETRY + AVENGER ROSTER -->
+    <section class="lg:col-span-3 flex flex-col gap-2 min-h-0">
+
+      <!-- Babylon, NY Weather Module -->
+      <div class="hud-panel rounded p-2.5 flex flex-col gap-1.5 shrink-0">
+        <div class="flex items-center justify-between gap-2 border-b border-cyan-500/20 pb-1">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <i data-lucide="cloud-sun" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300 truncate">BABYLON, NY // WX</h2>
+          </div>
+          <span id="weather-source-badge" class="text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 whitespace-nowrap shrink-0">SYNCING...</span>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-baseline gap-1.5">
+              <span id="wx-temp" class="font-hud text-2xl font-extrabold text-white">--°F</span>
+              <span id="wx-feels" class="text-[10px] font-mono-hud text-cyan-300/75 whitespace-nowrap">FEELS --°</span>
+            </div>
+            <div id="wx-desc" class="text-[10px] font-medium text-amber-300 truncate">Scanning atmospheric layer...</div>
+          </div>
+          <div class="text-right font-mono-hud text-[10px] space-y-0.5 text-slate-300 shrink-0 whitespace-nowrap">
+            <div>WIND: <span id="wx-wind" class="text-cyan-200">-- mph</span></div>
+            <div>HUMID: <span id="wx-humid" class="text-cyan-200">--%</span></div>
+            <div>PRESS: <span id="wx-press" class="text-cyan-200">---- hPa</span></div>
+          </div>
+        </div>
+
+        <!-- Hourly SVG Sparkline -->
+        <div class="bg-slate-950/60 border border-cyan-500/15 rounded p-1">
+          <div class="flex justify-between text-[9px] font-mono-hud text-slate-400 mb-0.5">
+            <span>12H THERMAL</span>
+            <span id="wx-marine">ANZ355: 1-2 FT • 5-10 KT</span>
+          </div>
+          <svg id="wx-sparkline" viewBox="0 0 260 38" class="w-full h-9 overflow-visible"></svg>
+        </div>
+
+        <!-- 3-Day Tactical Outlook -->
+        <div id="wx-forecast" class="grid grid-cols-3 gap-1 text-center font-mono-hud text-[10px]"></div>
+      </div>
+
+      <!-- Stark Arc Reactor & Suit Diagnostics -->
+      <div class="hud-panel rounded p-2.5 flex flex-col gap-1.5 shrink-0">
+        <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-amber-300">STARK CORE // MK LXXXV</h2>
+          </div>
+          <span class="text-[9px] font-mono-hud text-emerald-400">ONLINE</span>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <div class="w-12 h-12 shrink-0 relative flex items-center justify-center">
+            <svg viewBox="0 0 80 80" class="w-12 h-12">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(0,229,255,0.2)" stroke-width="2" />
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-dasharray="14 6" class="spin-slow" />
+              <circle cx="40" cy="40" r="21" fill="none" stroke="#ffb300" stroke-width="1.8" stroke-dasharray="8 5" class="spin-reverse" />
+              <polygon points="40,22 55,49 25,49" fill="rgba(0,229,255,0.18)" stroke="#00e5ff" stroke-width="1.8" />
+              <circle cx="40" cy="41" r="6" fill="#e0faff" class="animate-pulse" />
+            </svg>
+          </div>
+          <div class="flex-1 space-y-1 font-mono-hud text-[10px]">
+            <div class="flex justify-between">
+              <span class="text-slate-400">REACTOR OUTPUT</span>
+              <span id="reactor-output" class="text-cyan-300 font-bold">3.21 GJ/s</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-900 rounded overflow-hidden">
+              <div id="reactor-bar" class="h-full bg-gradient-to-r from-cyan-500 to-sky-300 transition-all duration-700" style="width: 94%"></div>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">NANOTECH ARMOR</span>
+              <span id="armor-integrity" class="text-emerald-300 font-bold">99.4%</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">HELICARRIER-64</span>
+              <span id="helicarrier-alt" class="text-amber-300">32,400 FT</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avenger & S.H.I.E.L.D. Asset Readiness (Fits all 5 on screen at once) -->
+      <div class="hud-panel rounded p-2.5 flex-1 min-h-0 flex flex-col">
+        <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="shield" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">AVENGER // ASSET ROSTER</h2>
+          </div>
+          <span class="text-[9px] font-mono-hud text-emerald-400/80 whitespace-nowrap">LIVE SYNC</span>
+        </div>
+        <div id="roster-list" class="flex-1 min-h-0 flex flex-col justify-between gap-1 overflow-y-auto hud-scroll"></div>
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN (6 cols): GLOBAL TACTICAL WORLD VIEW -->
+    <section class="lg:col-span-6 hud-panel rounded p-2.5 flex flex-col min-h-[380px] lg:min-h-0 relative overflow-hidden">
+      <!-- Map Header Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-2 shrink-0 z-10">
+        <div class="flex items-center gap-2">
+          <i data-lucide="globe" class="w-4 h-4 text-cyan-400"></i>
+          <h2 class="font-hud text-xs sm:text-sm font-bold tracking-wider text-cyan-200">GLOBAL TACTICAL SURVEILLANCE</h2>
+          <span id="seismic-badge" class="text-[10px] font-mono-hud px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">USGS: LOADING</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="btn-mode-2d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition">2D MAP</button>
+          <button id="btn-mode-3d" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition">3D GLOBE</button>
+          <button id="btn-rotate-globe" class="hidden px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-amber-300 border border-amber-500/40 transition">PAUSE SPIN</button>
+          <button id="btn-trigger-anomaly" class="px-2 py-1 rounded text-[10px] font-mono-hud bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition flex items-center gap-1">
+            <i data-lucide="zap" class="w-3 h-3"></i> SIM ANOMALY
+          </button>
+        </div>
+      </div>
+
+      <!-- World Map SVG Container -->
+      <div id="map-container" class="flex-1 min-h-0 relative flex items-center justify-center bg-[#040810]/70 rounded border border-cyan-500/15 overflow-hidden">
+        <svg id="world-map" class="w-full h-full select-none"></svg>
+
+        <!-- Corner Telemetry Readouts -->
+        <div class="absolute top-2 left-2.5 font-mono-hud text-[10px] text-cyan-300/75 pointer-events-none space-y-0.5">
+          <div>ORBITAL TRACK: <span class="text-cyan-200">STARK-SAT-04 // S.A.B.E.R.</span></div>
+          <div>ACTIVE CONTACTS: <span id="map-contact-count" class="text-amber-300">--</span></div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="absolute bottom-2 left-2.5 flex flex-wrap items-center gap-3 text-[10px] font-mono-hud bg-slate-950/80 border border-cyan-500/20 px-2.5 py-1 rounded pointer-events-none">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> HQ BABYLON</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> S.H.I.E.L.D.</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> SEISMIC (LIVE)</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> ANOMALY</span>
+        </div>
+
+        <!-- Target Dossier Overlay Card (Shown on Marker Click) -->
+        <div id="target-dossier" class="hidden absolute bottom-2 right-2 w-72 max-w-[92%] bg-[#071120]/95 border border-cyan-400/50 rounded p-3 shadow-2xl z-20">
+          <div class="flex items-start justify-between gap-2 border-b border-cyan-500/20 pb-1.5 mb-2">
+            <div>
+              <div id="dossier-type" class="text-[9px] font-mono-hud uppercase tracking-wider text-amber-300">S.H.I.E.L.D. ASSET</div>
+              <h3 id="dossier-title" class="font-hud text-xs font-bold text-white">Target</h3>
+            </div>
+            <button id="btn-close-dossier" class="text-slate-400 hover:text-white">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p id="dossier-desc" class="text-[11px] text-slate-300 leading-relaxed mb-2"></p>
+          <div class="flex items-center justify-between text-[10px] font-mono-hud text-cyan-300/80 mb-2">
+            <span id="dossier-coords">--°, --°</span>
+            <span id="dossier-status" class="text-emerald-300">MONITORING</span>
+          </div>
+          <button id="btn-dispatch" class="w-full py-1.5 rounded text-[11px] font-hud font-bold tracking-wider bg-cyan-500/20 text-cyan-200 border border-cyan-400/50 hover:bg-cyan-500/35 transition">
+            DISPATCH QUINJET / RECON
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN (3 cols): LIVE MULTI-DOMAIN NEWS & INTEL FEED -->
+    <section class="lg:col-span-3 hud-panel rounded p-2.5 flex flex-col min-h-[340px] lg:min-h-0">
+      <div class="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5 shrink-0">
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="radio" class="w-3.5 h-3.5 text-amber-400 animate-pulse"></i>
+          <h2 class="font-hud text-[11px] font-bold tracking-wider text-cyan-300">INTEL // SLIDE DECK</h2>
+        </div>
+        <span id="auto-cycle-indicator" class="text-[9px] font-mono-hud text-cyan-300/70">SLIDE: 12s</span>
+      </div>
+
+      <!-- Category Filter Tabs (Starts on BIZ so all 3 cards fit cleanly without scrolling!) -->
+      <div class="grid grid-cols-4 gap-1 mb-1.5 shrink-0" id="news-tabs">
+        <button data-cat="business" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50">BIZ</button>
+        <button data-cat="local" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">LOCAL</button>
+        <button data-cat="shield" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">HERO</button>
+        <button data-cat="all" class="news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200">ALL</button>
+      </div>
+
+      <!-- News Feed Cards -->
+      <div id="news-feed" class="flex-1 overflow-y-auto hud-scroll space-y-1.5 pr-1"></div>
+
+      <!-- Live Action Log -->
+      <div class="mt-1.5 pt-1.5 border-t border-cyan-500/20 shrink-0">
+        <div class="text-[9px] font-mono-hud text-slate-400 mb-0.5 flex justify-between">
+          <span>J.A.R.V.I.S. EVENT LOG</span>
+          <span id="log-pulse" class="text-emerald-400">● LIVE</span>
+        </div>
+        <div id="jarvis-log" class="text-[10px] font-mono-hud text-cyan-200/80 h-11 overflow-y-auto hud-scroll space-y-0.5"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM LIVE TICKER BAR -->
+  <footer class="shrink-0 border-t border-cyan-500/30 bg-[#040811] py-1.5 px-3 flex items-center gap-3 z-20">
+    <div class="shrink-0 flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 rounded">
+      <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+      <span class="font-hud text-[10px] font-bold tracking-widest text-rose-300">LIVE WIRE</span>
+    </div>
+
+    <!-- Live Market Mini-Strip -->
+    <div id="market-strip" class="hidden md:flex items-center gap-3 shrink-0 font-mono-hud text-[11px] border-r border-cyan-500/20 pr-3"></div>
+
+    <!-- Scrolling Marquee -->
+    <div class="flex-1 overflow-hidden ticker-wrapper">
+      <div id="ticker-track" class="ticker-track font-mono-hud text-xs text-cyan-100/90 gap-8"></div>
+    </div>
+  </footer>
+
+  <!-- IN-PAGE TOAST NOTIFICATION -->
+  <div id="hud-toast" class="fixed top-16 right-4 z-50 hidden bg-[#071528]/95 border border-cyan-400/60 text-cyan-100 px-3.5 py-2 rounded shadow-xl font-mono-hud text-xs max-w-sm"></div>
+
+  <script>
+    // =========================================================================
+    // 1. STATE & GROUNDED DATASETS (Nov 21, 2026)
+    // =========================================================================
+    const BABYLON_COORDS = [-73.3257, 40.6957]; // [lng, lat]
+
+    const state = {
+      threatLevel: 5,
+      autoCycle: true,
+      audioEnabled: false,
+      activeNewsCat: 'business',
+      mapMode: '2d', // '2d' | '3d'
+      globeSpinning: true,
+      globeRotation: [45, -20, 0],
+      selectedTarget: null,
+      worldData: null,
+      seismicEvents: [],
+      dispatchedIds: new Set(),
+      customAnomalies: [],
+      rosterTick: 0
+    };
+
+    const ROSTER = [
+      {
+        id: 'ironman', name: 'IRON MAN // MK LXXXV', badge: 'ONLINE', color: 'text-cyan-300', coords: [-73.98, 40.75],
+        statuses: ['PATROL: NYC-LI CORRIDOR', 'ALTITUDE: 34,200 FT // MACH 1.8', 'STARK TOWER DIAGNOSTICS'],
+        detail: 'Tony Stark airborne over Manhattan–Long Island corridor. Arc Reactor output nominal.'
+      },
+      {
+        id: 'cap', name: 'CAPTAIN AMERICA', badge: 'READY', color: 'text-sky-300', coords: [-77.03, 38.90],
+        statuses: ['BRIEFING: D.C. HUB', 'TACTICAL DRILL: SECTOR 4', 'STRIKE TEAM STANDBY'],
+        detail: 'Steve Rogers coordinating rapid-response tactical teams at Potomac Command.'
+      },
+      {
+        id: 'spidey', name: 'SPIDER-MAN // QUEENS', badge: 'LOCAL', color: 'text-emerald-300', coords: [-73.82, 40.73],
+        statuses: ['LOCAL SECTOR: QUEENS', 'PERIMETER SWEEP: NASSAU', 'WEB-NET TELEMETRY OK'],
+        detail: 'Friendly Neighborhood perimeter sweep active across Queens & Nassau border.'
+      },
+      {
+        id: 'panther', name: 'BLACK PANTHER', badge: 'SECURED', color: 'text-amber-300', coords: [35.5, 1.5],
+        statuses: ['WAKANDA // OUTREACH', 'VIBRANIUM GRID: 100%', 'DESIGN GROUP LINKED'],
+        detail: 'Birnin Zana Vibranium grid & international science exchange operating at 100%.'
+      },
+      {
+        id: 'thor', name: 'THOR ODINSON', badge: 'STANDBY', color: 'text-purple-300', coords: [6.0, 61.5],
+        statuses: ['OFF-WORLD // BIFROST', 'NEW ASGARD RELAY OK', 'DEEP-SPACE WATCH'],
+        detail: 'New Asgard orbital relay monitored via S.A.B.E.R. deep-space telemetry.'
+      }
+    ];
+
+    const SHIELD_HOTSPOTS = [
+      { id: 'hq-babylon', type: 'HQ BEACON', title: 'BABYLON COMMAND NODE', coords: BABYLON_COORDS, status: 'PRIMARY NODE', severity: 'hq', desc: 'Local S.H.I.E.L.D. / Stark monitoring station in Babylon, NY. Monitoring Great South Bay & NYC East Corridor.' },
+      { id: 'avengers-ny', type: 'AVENGERS ASSET', title: 'AVENGERS COMPOUND UPSTATE', coords: [-73.92, 41.32], status: 'DEFENSE ACTIVE', severity: 'shield', desc: 'Upstate NY tactical hangar. Quinjet Alpha-02 fueled and ready for 4-minute scramble.' },
+      { id: 'wakanda', type: 'ALLIED TECH HUB', title: 'BIRNIN ZANA // WAKANDA', coords: [35.5, 1.5], status: 'ALLIED', severity: 'shield', desc: 'Wakandan Design Group telemetry link active. Vibranium resonance levels stable.' },
+      { id: 'london-sanctum', type: 'MYSTIC PERIMETER', title: 'LONDON SANCTUM', coords: [-0.12, 51.51], status: 'WARDED', severity: 'shield', desc: 'Dimensional barrier integrity 99.8%. Zero extradimensional incursion detected.' },
+      { id: 'tokyo-tech', type: 'STARK R&D', title: 'TOKYO STARK TOWER', coords: [139.69, 35.68], status: 'GRID NOMINAL', severity: 'shield', desc: 'Pacific Arc-Reactor clean energy testbed delivering 4.1 GW to regional grid.' },
+      { id: 'sokovia-zone', type: 'CONTAINMENT', title: 'NOVI GRAD PERIMETER', coords: [20.45, 44.81], status: 'WATCH', severity: 'anomaly', desc: 'Residual Chitauri-era electromagnetic fluctuations monitored by S.H.I.E.L.D. drones.' }
+    ];
+
+    const NEWS_ITEMS = [
+      {
+        cat: 'business',
+        tag: 'BUSINESS',
+        source: 'Washington Post / CBC',
+        time: 'NOV 21, 2026',
+        title: 'S&P 500, Dow & Nasdaq Enter Correction Territory',
+        summary: 'Major U.S. indices fell over 10% from recent highs amid an AI & tech sell-off, with Nasdaq erasing 2026 gains (-2.7% YTD) and S&P 500 near 7,376.'
+      },
+      {
+        cat: 'business',
+        tag: 'BUSINESS',
+        source: 'CBC / The Guardian',
+        time: 'NOV 20, 2026',
+        title: 'Anthropic Prices $1.51T IPO at $83/Share Amid Tech Volatility',
+        summary: 'AI giant debuted at $83/share before broader chipmaker and AI sector jitters weighed on second-day trading across Wall Street.'
+      },
+      {
+        cat: 'business',
+        tag: 'BUSINESS',
+        source: 'CNN Business',
+        time: 'NOV 20, 2026',
+        title: 'Wall Street Watches Nvidia Post-Earnings & Inflation Data',
+        summary: 'Tech volatility and Treasury yield shifts keep institutional desks on high alert heading into late November.'
+      },
+      {
+        cat: 'local',
+        tag: 'BABYLON / LI',
+        source: 'Town of Babylon',
+        time: 'NOV 16–21, 2026',
+        title: 'Town of Babylon Winter Coat Drive & Toys for Tots Active',
+        summary: 'Town Hall (200 Sunrise Hwy, Lindenhurst) partnering with U.S. Marine Corps Toys for Tots and hosting winter coat collection.'
+      },
+      {
+        cat: 'local',
+        tag: 'BABYLON / LI',
+        source: 'Newsday',
+        time: 'NOV 23, 2026',
+        title: 'Long Island Cares Produce Van at North Babylon Library',
+        summary: 'Fresh locally sourced produce available Nov 23 at North Babylon Public Library; residents advised to bring reusable bags.'
+      },
+      {
+        cat: 'local',
+        tag: 'BABYLON / LI',
+        source: 'I Love Babylon / NWS',
+        time: 'NOV 2026',
+        title: 'Babylon Budget Update & Fire Island Inlet Marine Advisory',
+        summary: 'Town budget sets 5.8% tax adjustment with raises removed. NWS ANZ355 reports NW/NE winds 5–10 kt and 1–2 ft seas.'
+      },
+      {
+        cat: 'shield',
+        tag: 'S.H.I.E.L.D.',
+        source: 'S.A.B.E.R. ORBITAL',
+        time: 'LIVE TELEMETRY',
+        title: 'S.A.B.E.R. Perimeter Clears Low-Earth Orbit Corridor',
+        summary: 'Nick Fury’s orbital defense grid reports zero hostile signatures across North Atlantic and Tri-State airspace.'
+      },
+      {
+        cat: 'shield',
+        tag: 'STARK IND.',
+        source: 'J.A.R.V.I.S. GRID',
+        time: 'LIVE TELEMETRY',
+        title: 'Clean Energy Arc-Reactor Substation Online in Suffolk Sector',
+        summary: 'Auxiliary Stark clean-energy capacitor bank operating at 98.4% efficiency, insulating local grid from peak load.'
+      },
+      {
+        cat: 'shield',
+        tag: 'AVENGERS',
+        source: 'FRIDAY DISPATCH',
+        time: 'LIVE TELEMETRY',
+        title: 'Mark LXXXV Nanotech Diagnostics & Quinjet Readiness Verified',
+        summary: 'All primary East Coast response assets cleared for sub-5-minute deployment from Upstate Compound.'
+      }
+    ];
+
+    const MARKETS = [
+      { sym: 'S&P500', price: 7376.86, chg: -1.42 },
+      { sym: 'NASDAQ', price: 24579.42, chg: -2.18 },
+      { sym: 'DOW', price: 51285.73, chg: -0.94 },
+      { sym: 'STARK', price: 482.50, chg: +1.85 },
+      { sym: 'PYM', price: 164.20, chg: +0.62 }
+    ];
+
+    // =========================================================================
+    // 2. WEB AUDIO HUD CHIMES (Synthesized, Muted by Default)
+    // =========================================================================
+    let audioCtx = null;
+    function playHudChime(freq = 880, dur = 0.08, type = 'sine') {
+      if (!state.audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch (_) {}
+    }
+
+    // =========================================================================
+    // 3. UTILITIES & LOGGING
+    // =========================================================================
+    function addLog(msg) {
+      const logEl = document.getElementById('jarvis-log');
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'America/New_York' });
+      const row = document.createElement('div');
+      row.innerHTML = `<span class="text-amber-400/80">[${now}]</span> ${msg}`;
+      logEl.prepend(row);
+      while (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('hud-toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    function updateClocks() {
+      const now = new Date();
+      const est = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false });
+      const utc = now.toLocaleTimeString('en-US', { timeZone: 'UTC', hour12: false });
+      const dateStr = now.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
+      document.getElementById('clock-local').textContent = `${est} EST`;
+      document.getElementById('clock-utc').textContent = `UTC ${utc} • ${dateStr}`;
+    }
+
+    // =========================================================================
+    // 4. WEATHER MODULE (Live Open-Meteo + Grounded Nov 2026 Fallback)
+    // =========================================================================
+    function weatherCodeToText(code) {
+      if (code === 0) return 'CLEAR SKY';
+      if (code <= 3) return 'PARTLY CLOUDY';
+      if (code <= 48) return 'COASTAL FOG / MIST';
+      if (code <= 67) return 'RAIN / SHOWERS';
+      if (code <= 77) return 'WINTRY MIX';
+      return 'STORM CELL';
+    }
+
+    function renderSparkline(temps) {
+      const svg = d3.select('#wx-sparkline');
+      svg.selectAll('*').remove();
+      const w = 260, h = 36, pad = 6;
+      const x = d3.scaleLinear().domain([0, temps.length - 1]).range([pad, w - pad]);
+      const minT = Math.min(...temps) - 2;
+      const maxT = Math.max(...temps) + 2;
+      const y = d3.scaleLinear().domain([minT, maxT]).range([h - pad, pad]);
+
+      const area = d3.area().x((_, i) => x(i)).y0(h).y1(d => y(d)).curve(d3.curveMonotoneX);
+      const line = d3.line().x((_, i) => x(i)).y(d => y(d)).curve(d3.curveMonotoneX);
+
+      svg.append('path').datum(temps).attr('fill', 'rgba(0, 229, 255, 0.14)').attr('d', area);
+      svg.append('path').datum(temps).attr('fill', 'none').attr('stroke', '#00e5ff').attr('stroke-width', 1.8).attr('d', line);
+
+      temps.forEach((t, i) => {
+        if (i === 0 || i === temps.length - 1 || i === Math.floor(temps.length / 2)) {
+          svg.append('circle').attr('cx', x(i)).attr('cy', y(t)).attr('r', 2.2).attr('fill', '#ffb300');
+          svg.append('text').attr('x', x(i)).attr('y', y(t) - 4).attr('text-anchor', 'middle').attr('fill', '#bae6fd').attr('font-size', '8px').attr('font-family', 'JetBrains Mono').text(`${Math.round(t)}°`);
+        }
+      });
+    }
+
+    async function loadWeather() {
+      const badge = document.getElementById('weather-source-badge');
+      try {
+        const url = 'https://api.open-meteo.com/v1/forecast?latitude=40.6957&longitude=-73.3257&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FNew_York';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Weather API error');
+        const data = await res.json();
+        const c = data.current;
+
+        document.getElementById('wx-temp').textContent = `${Math.round(c.temperature_2m)}°F`;
+        document.getElementById('wx-feels').textContent = `FEELS ${Math.round(c.apparent_temperature)}°`;
+        document.getElementById('wx-desc').textContent = weatherCodeToText(c.weather_code);
+        document.getElementById('wx-wind').textContent = `${Math.round(c.wind_speed_10m)} mph`;
+        document.getElementById('wx-humid').textContent = `${c.relative_humidity_2m}%`;
+        document.getElementById('wx-press').textContent = `${Math.round(c.surface_pressure)} hPa`;
+
+        const hourly12 = data.hourly.temperature_2m.slice(0, 12);
+        renderSparkline(hourly12);
+
+        const fcEl = document.getElementById('wx-forecast');
+        fcEl.innerHTML = '';
+        const days = ['TODAY', 'TOMORROW', 'DAY +2'];
+        for (let i = 0; i < 3; i++) {
+          const hi = Math.round(data.daily.temperature_2m_max[i]);
+          const lo = Math.round(data.daily.temperature_2m_min[i]);
+          fcEl.innerHTML += `
+            <div class="bg-slate-900/75 border border-cyan-500/15 rounded p-1">
+              <div class="text-slate-400 text-[9px]">${days[i]}</div>
+              <div class="text-cyan-200 font-bold">${hi}° / <span class="text-slate-400">${lo}°</span></div>
+            </div>`;
+        }
+        badge.textContent = 'LIVE // OPEN-METEO';
+        badge.className = 'text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap shrink-0';
+        addLog('Atmospheric telemetry synced for Babylon, NY.');
+      } catch (_) {
+        document.getElementById('wx-temp').textContent = '51°F';
+        document.getElementById('wx-feels').textContent = 'FEELS 47°';
+        document.getElementById('wx-desc').textContent = 'PARTLY CLOUDY // BREEZY';
+        document.getElementById('wx-wind').textContent = '7 mph NW';
+        document.getElementById('wx-humid').textContent = '58%';
+        document.getElementById('wx-press').textContent = '1018 hPa';
+        renderSparkline([51, 50, 48, 46, 44, 42, 41, 40, 42, 45, 49, 52]);
+        document.getElementById('wx-forecast').innerHTML = `
+          <div class="bg-slate-900/75 border border-cyan-500/15 rounded p-1"><div class="text-slate-400 text-[9px]">TODAY</div><div class="text-cyan-200 font-bold">52° / <span class="text-slate-400">40°</span></div></div>
+          <div class="bg-slate-900/75 border border-cyan-500/15 rounded p-1"><div class="text-slate-400 text-[9px]">SUN</div><div class="text-cyan-200 font-bold">54° / <span class="text-slate-400">39°</span></div></div>
+          <div class="bg-slate-900/75 border border-cyan-500/15 rounded p-1"><div class="text-slate-400 text-[9px]">MON</div><div class="text-cyan-200 font-bold">49° / <span class="text-slate-400">37°</span></div></div>
+        `;
+        badge.textContent = 'NWS // CACHED';
+        badge.className = 'text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 whitespace-nowrap shrink-0';
+      }
+    }
+
+    // =========================================================================
+    // 5. GLOBAL TACTICAL MAP (D3 + TopoJSON + Live USGS Seismic Feed)
+    // =========================================================================
+    let globeTimer = null;
+
+    async function loadWorldMapAndSeismic() {
+      if (!state.worldData) {
+        try {
+          const worldRes = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+          if (!worldRes.ok) throw new Error('Atlas fetch failed');
+          state.worldData = await worldRes.json();
+        } catch (e) {
+          addLog('World Atlas offline — using orbital grid projection.');
+        }
+      }
+
+      try {
+        const eqRes = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson');
+        if (!eqRes.ok) throw new Error('USGS fetch failed');
+        const eqData = await eqRes.json();
+        state.seismicEvents = (eqData.features || []).slice(0, 14).map(f => ({
+          id: 'eq-' + f.id,
+          type: 'USGS SEISMIC // M' + (f.properties.mag ? f.properties.mag.toFixed(1) : '?'),
+          title: f.properties.place || 'Seismic Signature',
+          coords: [f.geometry.coordinates[0], f.geometry.coordinates[1]],
+          status: 'LIVE TELEMETRY',
+          severity: 'seismic',
+          desc: `Magnitude ${f.properties.mag} seismic event detected at depth ${Math.round(f.geometry.coordinates[2] || 0)} km.`
+        }));
+        const badge = document.getElementById('seismic-badge');
+        badge.textContent = `USGS: ${state.seismicEvents.length} LIVE`;
+        badge.className = 'text-[10px] font-mono-hud px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+      } catch (_) {
+        document.getElementById('seismic-badge').textContent = 'USGS: STANDBY';
+      }
+
+      renderMap();
+    }
+
+    function renderMap() {
+      const container = document.getElementById('map-container');
+      const svg = d3.select('#world-map');
+      const width = container.clientWidth || 720;
+      const height = container.clientHeight || 420;
+      svg.attr('viewBox', `0 0 ${width} ${height}`);
+      svg.selectAll('*').remove();
+
+      const countries = state.worldData
+        ? topojson.feature(state.worldData, state.worldData.objects.countries)
+        : null;
+
+      let projection;
+      if (state.mapMode === '3d') {
+        const radius = Math.min(width, height) * 0.43;
+        projection = d3.geoOrthographic()
+          .scale(radius)
+          .translate([width / 2, height / 2])
+          .rotate(state.globeRotation)
+          .clipAngle(90);
+      } else {
+        projection = d3.geoNaturalEarth1().fitExtent([[18, 26], [width - 18, height - 26]], countries || { type: 'Sphere' });
+      }
+
+      const path = d3.geoPath(projection);
+      const graticule = d3.geoGraticule10();
+
+      svg.append('path')
+        .datum({ type: 'Sphere' })
+        .attr('d', path)
+        .attr('fill', '#051020')
+        .attr('stroke', 'rgba(0, 229, 255, 0.35)')
+        .attr('stroke-width', 1.2);
+
+      svg.append('path')
+        .datum(graticule)
+        .attr('d', path)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(0, 229, 255, 0.12)')
+        .attr('stroke-width', 0.6);
+
+      if (countries) {
+        svg.append('g')
+          .selectAll('path')
+          .data(countries.features)
+          .join('path')
+          .attr('d', path)
+          .attr('fill', '#0d1f36')
+          .attr('stroke', 'rgba(0, 229, 255, 0.3)')
+          .attr('stroke-width', 0.6);
+      }
+
+      const orbitLine = {
+        type: 'LineString',
+        coordinates: [[-170, -25], [-100, 15], BABYLON_COORDS, [0, 48], [80, 25], [160, -15]]
+      };
+      svg.append('path')
+        .datum(orbitLine)
+        .attr('d', path)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255, 179, 0, 0.45)')
+        .attr('stroke-width', 1.3)
+        .attr('stroke-dasharray', '4 4');
+
+      const allMarkers = [...SHIELD_HOTSPOTS, ...state.seismicEvents, ...state.customAnomalies];
+      document.getElementById('map-contact-count').textContent = allMarkers.length;
+
+      const markerGroup = svg.append('g');
+
+      allMarkers.forEach(item => {
+        if (state.mapMode === '3d') {
+          const center = [-state.globeRotation[0], -state.globeRotation[1]];
+          if (d3.geoDistance(item.coords, center) > Math.PI / 2) return;
+        }
+        const pt = projection(item.coords);
+        if (!pt) return;
+
+        const colorMap = {
+          hq: '#00e676',
+          shield: '#00e5ff',
+          seismic: '#ffb300',
+          anomaly: '#ff3b5c'
+        };
+        const col = colorMap[item.severity] || '#00e5ff';
+
+        const g = markerGroup.append('g')
+          .attr('transform', `translate(${pt[0]}, ${pt[1]})`)
+          .style('cursor', 'pointer')
+          .on('click', () => openDossier(item));
+
+        if (item.severity === 'hq' || item.severity === 'anomaly') {
+          g.append('circle')
+            .attr('r', 6)
+            .attr('fill', 'none')
+            .attr('stroke', col)
+            .attr('stroke-width', 1.5)
+            .attr('class', 'pulse-ring');
+        }
+
+        g.append('circle')
+          .attr('r', item.severity === 'hq' ? 4.5 : 3.5)
+          .attr('fill', col)
+          .attr('stroke', '#040811')
+          .attr('stroke-width', 1);
+
+        if (item.severity === 'hq' || item.severity === 'anomaly') {
+          g.append('text')
+            .attr('x', 8)
+            .attr('y', 3)
+            .attr('fill', col)
+            .attr('font-size', '9px')
+            .attr('font-family', 'JetBrains Mono')
+            .attr('font-weight', '700')
+            .text(item.severity === 'hq' ? 'HQ: BABYLON' : item.title.slice(0, 16));
+        }
+      });
+    }
+
+    function openDossier(item) {
+      state.selectedTarget = item;
+      playHudChime(960, 0.07);
+      document.getElementById('dossier-type').textContent = item.type;
+      document.getElementById('dossier-title').textContent = item.title;
+      document.getElementById('dossier-desc').textContent = item.desc;
+      document.getElementById('dossier-coords').textContent = `${item.coords[1].toFixed(2)}°, ${item.coords[0].toFixed(2)}°`;
+      const isDispatched = state.dispatchedIds.has(item.id);
+      document.getElementById('dossier-status').textContent = isDispatched ? 'QUINJET EN ROUTE' : item.status;
+      document.getElementById('btn-dispatch').textContent = isDispatched ? 'ASSET DISPATCHED ✓' : 'DISPATCH QUINJET / RECON';
+      document.getElementById('target-dossier').classList.remove('hidden');
+    }
+
+    // =========================================================================
+    // 6. ROSTER, NEWS FEED & LIVE TICKER
+    // =========================================================================
+    function renderRoster() {
+      const el = document.getElementById('roster-list');
+      el.innerHTML = '';
+      ROSTER.forEach((hero, idx) => {
+        const statusText = hero.statuses[(state.rosterTick + idx) % hero.statuses.length];
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left bg-slate-900/70 hover:bg-cyan-950/50 border border-cyan-500/15 hover:border-cyan-400/45 rounded px-2 py-1.5 transition flex items-center justify-between gap-2';
+        btn.innerHTML = `
+          <div class="min-w-0">
+            <div class="font-hud text-[10px] font-bold ${hero.color} truncate">${hero.name}</div>
+            <div class="font-mono-hud text-[9px] text-slate-400 truncate">${statusText}</div>
+          </div>
+          <span class="shrink-0 text-[9px] font-mono-hud px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-200 border border-cyan-500/25">${hero.badge}</span>
+        `;
+        btn.addEventListener('click', () => {
+          if (state.mapMode === '3d') {
+            state.globeRotation = [-hero.coords[0], -hero.coords[1], 0];
+            renderMap();
+          }
+          openDossier({
+            id: hero.id,
+            type: 'AVENGER ASSET',
+            title: hero.name,
+            coords: hero.coords,
+            status: hero.badge,
+            severity: 'shield',
+            desc: hero.detail
+          });
+        });
+        el.appendChild(btn);
+      });
+    }
+
+    function renderNews() {
+      const feed = document.getElementById('news-feed');
+      const items = state.activeNewsCat === 'all'
+        ? NEWS_ITEMS
+        : NEWS_ITEMS.filter(n => n.cat === state.activeNewsCat);
+
+      feed.innerHTML = items.map(n => {
+        const badgeCol = n.cat === 'business'
+          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+          : n.cat === 'local'
+            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+            : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+        return `
+          <article class="bg-slate-900/70 border border-cyan-500/15 rounded p-2 hover:border-cyan-400/40 transition">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+              <span class="text-[9px] font-mono-hud px-1.5 py-0.5 rounded border ${badgeCol}">${n.tag}</span>
+              <span class="text-[9px] font-mono-hud text-slate-400 truncate">${n.source} • ${n.time}</span>
+            </div>
+            <h3 class="text-[11px] font-semibold text-cyan-100 leading-snug mb-0.5">${n.title}</h3>
+            <p class="text-[10px] text-slate-300/90 leading-snug">${n.summary}</p>
+          </article>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.news-tab').forEach(btn => {
+        const active = btn.dataset.cat === state.activeNewsCat;
+        btn.className = active
+          ? 'news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50'
+          : 'news-tab py-1 rounded text-[10px] font-mono-hud font-semibold bg-slate-900/70 text-slate-400 border border-slate-700 hover:text-cyan-200';
+      });
+    }
+
+    function renderTicker() {
+      const strip = document.getElementById('market-strip');
+      strip.innerHTML = MARKETS.map(m => {
+        const up = m.chg >= 0;
+        const col = up ? 'text-emerald-400' : 'text-rose-400';
+        return `<span><strong class="text-cyan-200">${m.sym}</strong> ${m.price.toFixed(2)} <span class="${col}">${up ? '▲' : '▼'}${Math.abs(m.chg).toFixed(2)}%</span></span>`;
+      }).join('');
+
+      const track = document.getElementById('ticker-track');
+      const headlines = NEWS_ITEMS.map(n => `<span class="inline-flex items-center gap-2"><span class="text-amber-400 font-bold">[${n.tag}]</span> ${n.title}</span>`).join('');
+      track.innerHTML = headlines + headlines;
+    }
+
+    // =========================================================================
+    // 7. DYNAMIC UPDATES & EVENT LISTENERS
+    // =========================================================================
+    function startDynamicLoops() {
+      updateClocks();
+      setInterval(updateClocks, 1000);
+
+      // Live telemetry & market tick every 4s
+      setInterval(() => {
+        const output = (3.18 + Math.random() * 0.08).toFixed(2);
+        const pct = Math.round(91 + Math.random() * 6);
+        document.getElementById('reactor-output').textContent = `${output} GJ/s`;
+        document.getElementById('reactor-bar').style.width = `${pct}%`;
+
+        MARKETS.forEach(m => {
+          const delta = (Math.random() - 0.5) * 0.08;
+          m.chg = +(m.chg + delta).toFixed(2);
+        });
+        const strip = document.getElementById('market-strip');
+        strip.innerHTML = MARKETS.map(m => {
+          const up = m.chg >= 0;
+          const col = up ? 'text-emerald-400' : 'text-rose-400';
+          return `<span><strong class="text-cyan-200">${m.sym}</strong> ${m.price.toFixed(2)} <span class="${col}">${up ? '▲' : '▼'}${Math.abs(m.chg).toFixed(2)}%</span></span>`;
+        }).join('');
+      }, 4000);
+
+      // Auto-cycle Intel Slides (BIZ -> LOCAL -> HERO) every 12s
+      const slideCats = ['business', 'local', 'shield'];
+      setInterval(() => {
+        if (!state.autoCycle) return;
+        const idx = (slideCats.indexOf(state.activeNewsCat) + 1) % slideCats.length;
+        state.activeNewsCat = slideCats[idx];
+        renderNews();
+        playHudChime(680, 0.05);
+      }, 12000);
+
+      // Dynamic Avenger Roster patrol telemetry rotation every 18s
+      setInterval(() => {
+        state.rosterTick += 1;
+        renderRoster();
+        addLog('Avenger patrol telemetry updated.');
+      }, 18000);
+
+      // Refresh live USGS seismic every 5 min & Open-Meteo weather every 10 min
+      setInterval(loadWorldMapAndSeismic, 300000);
+      setInterval(loadWeather, 600000);
+    }
+
+    function bindEvents() {
+      document.getElementById('threat-select').addEventListener('change', e => {
+        const val = Number(e.target.value);
+        state.threatLevel = val;
+        const root = document.getElementById('app-root');
+        root.className = root.className.replace(/threat-\d/, `threat-${val}`);
+        const badge = document.getElementById('threat-badge');
+        const colors = { 5: 'bg-cyan-400', 4: 'bg-sky-400', 3: 'bg-amber-400', 2: 'bg-orange-500', 1: 'bg-rose-500 animate-ping' };
+        badge.className = `w-2 h-2 rounded-full ${colors[val]}`;
+        playHudChime(val <= 2 ? 440 : 720, 0.14, val <= 2 ? 'sawtooth' : 'sine');
+        addLog(`S.H.I.E.L.D. Threat Level updated to LEVEL ${val}.`);
+      });
+
+      document.getElementById('btn-autocycle').addEventListener('click', () => {
+        state.autoCycle = !state.autoCycle;
+        const btn = document.getElementById('btn-autocycle');
+        btn.querySelector('span').textContent = state.autoCycle ? 'SLIDES: ON' : 'SLIDES: OFF';
+        document.getElementById('auto-cycle-indicator').textContent = state.autoCycle ? 'SLIDE: 12s' : 'PAUSED';
+        playHudChime(800, 0.06);
+      });
+
+      document.getElementById('btn-audio').addEventListener('click', () => {
+        state.audioEnabled = !state.audioEnabled;
+        document.getElementById('audio-label').textContent = state.audioEnabled ? 'AUDIO ON' : 'MUTE';
+        document.getElementById('audio-icon').setAttribute('data-lucide', state.audioEnabled ? 'volume-2' : 'volume-x');
+        if (window.lucide) lucide.createIcons();
+        if (state.audioEnabled) {
+          playHudChime(880, 0.07);
+          setTimeout(() => playHudChime(1180, 0.09), 80);
+          showToast('J.A.R.V.I.S. HUD AUDIO ENABLED');
+        }
+      });
+
+      document.getElementById('btn-fullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => showToast('Fullscreen blocked by browser policy.'));
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      document.getElementById('btn-mode-2d').addEventListener('click', () => {
+        state.mapMode = '2d';
+        clearInterval(globeTimer);
+        document.getElementById('btn-rotate-globe').classList.add('hidden');
+        document.getElementById('btn-mode-2d').className = 'px-2 py-1 rounded text-[10px] font-mono-hud bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition';
+        document.getElementById('btn-mode-3d').className = 'px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition';
+        playHudChime(760, 0.06);
+        renderMap();
+      });
+
+      document.getElementById('btn-mode-3d').addEventListener('click', () => {
+        state.mapMode = '3d';
+        document.getElementById('btn-rotate-globe').classList.remove('hidden');
+        document.getElementById('btn-mode-3d').className = 'px-2 py-1 rounded text-[10px] font-mono-hud bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition';
+        document.getElementById('btn-mode-2d').className = 'px-2 py-1 rounded text-[10px] font-mono-hud bg-slate-800/80 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition';
+        playHudChime(880, 0.06);
+        renderMap();
+        clearInterval(globeTimer);
+        globeTimer = setInterval(() => {
+          if (state.mapMode === '3d' && state.globeSpinning) {
+            state.globeRotation[0] = (state.globeRotation[0] + 0.6) % 360;
+            renderMap();
+          }
+        }, 80);
+      });
+
+      document.getElementById('btn-rotate-globe').addEventListener('click', () => {
+        state.globeSpinning = !state.globeSpinning;
+        document.getElementById('btn-rotate-globe').textContent = state.globeSpinning ? 'PAUSE SPIN' : 'RESUME SPIN';
+      });
+
+      document.getElementById('btn-trigger-anomaly').addEventListener('click', () => {
+        const samples = [
+          { title: 'TESSERACT ENERGY SPIKE', coords: [-74.0, 40.7], desc: 'Unscheduled gamma-signature detected near Manhattan Hudson Corridor.' },
+          { title: 'HYDRA ENCRYPTED BURST', coords: [13.4, 52.5], desc: 'Brief encrypted burst intercepted over Central European relay.' },
+          { title: 'ATLANTIS SONAR ECHO', coords: [-55.0, 28.0], desc: 'Unidentified high-velocity submerged contact in Mid-Atlantic Ridge.' }
+        ];
+        const pick = samples[Math.floor(Math.random() * samples.length)];
+        const anomaly = {
+          id: 'anom-' + Date.now(),
+          type: 'PRIORITY ANOMALY',
+          title: pick.title,
+          coords: pick.coords,
+          status: 'INTERCEPT REQUIRED',
+          severity: 'anomaly',
+          desc: pick.desc
+        };
+        state.customAnomalies.push(anomaly);
+        playHudChime(520, 0.16, 'sawtooth');
+        addLog(`ALERT: ${anomaly.title} detected!`);
+        showToast(`ANOMALY DETECTED: ${anomaly.title}`);
+        renderMap();
+        openDossier(anomaly);
+      });
+
+      document.getElementById('btn-close-dossier').addEventListener('click', () => {
+        document.getElementById('target-dossier').classList.add('hidden');
+      });
+
+      document.getElementById('btn-dispatch').addEventListener('click', () => {
+        if (!state.selectedTarget) return;
+        state.dispatchedIds.add(state.selectedTarget.id);
+        playHudChime(1120, 0.1);
+        addLog(`Quinjet Alpha-02 dispatched to ${state.selectedTarget.title}.`);
+        showToast(`DISPATCH CONFIRMED: ${state.selectedTarget.title}`);
+        openDossier(state.selectedTarget);
+      });
+
+      document.getElementById('news-tabs').addEventListener('click', e => {
+        const btn = e.target.closest('.news-tab');
+        if (!btn) return;
+        state.activeNewsCat = btn.dataset.cat;
+        playHudChime(820, 0.05);
+        renderNews();
+      });
+
+      window.addEventListener('resize', () => renderMap());
+    }
+
+    // =========================================================================
+    // 8. INIT
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+      renderRoster();
+      renderNews();
+      renderTicker();
+      bindEvents();
+      startDynamicLoops();
+      addLog('S.H.I.E.L.D. / Stark Command OS initialized.');
+      renderMap();
+      loadWeather();
+      loadWorldMapAndSeismic();
+    });
+  </script>
+</body>
+</html>
